@@ -30,10 +30,21 @@ const MAS = [
   { href: "/guia/seguridad", etiqueta: "Seguridad y datos", icono: Shield },
 ]
 
+function normalizarRuta(pathname: string) {
+  if (pathname === "/") return "/"
+  return pathname.replace(/\/+$/, "") || "/"
+}
+
 function activo(pathname: string, href: string) {
-  if (href === "/") return pathname === "/"
-  if (href === "/guia") return pathname === "/guia"
-  return pathname === href || pathname.startsWith(`${href}/`)
+  const ruta = normalizarRuta(pathname)
+  if (href === "/") return ruta === "/"
+  if (href === "/guia") return ruta === "/guia"
+  return ruta === href || ruta.startsWith(`${href}/`)
+}
+
+function esPublica(pathname: string) {
+  const ruta = normalizarRuta(pathname)
+  return ruta === "/guia" || ruta === "/guia/seguridad" || ruta === "/sindi-cato"
 }
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -41,7 +52,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const [mas, setMas] = useState(false)
-  const publica = pathname === "/guia" || pathname === "/guia/seguridad" || pathname === "/sindi-cato"
+  const publica = esPublica(pathname)
 
   if (!app.listo) {
     return (
