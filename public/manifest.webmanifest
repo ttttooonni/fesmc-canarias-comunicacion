@@ -1,10 +1,10 @@
 {
-  "id": "./",
+  "id": "/",
   "name": "Comunicación digital UGT FeSMC Canarias",
   "short_name": "UGT Com",
   "description": "Redacción digital de UGT FeSMC Canarias. La ficha breve y el circuito se comparten por WhatsApp, sin servidor.",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "lang": "es",
@@ -12,8 +12,23 @@
   "background_color": "#F3EFEA",
   "theme_color": "#E30613",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

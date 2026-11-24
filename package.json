@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 4179",
+    "predev": "node scripts/preparar-estaticos.mjs",
+    "prebuild": "node scripts/preparar-estaticos.mjs",
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 4179",
     "lint": "eslint",
