@@ -2,7 +2,7 @@ import type { EstadoId, IslaId } from "@/lib/dominio"
 import { actualizarDatos, actualizarTextos, aclararFicha, aplicarTransicion, registrarCompartido } from "@/lib/fichas"
 import { puedeVerFicha } from "@/lib/validar"
 import { esId, esUsuario, exigirUsuario, json, mal } from "@/server/http"
-import { guardar, leer } from "@/server/store"
+import { fichaPorId, guardarFicha } from "@/server/repositorio"
 
 type Cuerpo = {
   tipo?: string
@@ -17,22 +17,22 @@ type Cuerpo = {
 }
 
 export async function GET(req: Request, contexto: { params: Promise<{ id: string }> }) {
-  const usuario = exigirUsuario(req)
+  const usuario = await exigirUsuario(req)
   if (!esUsuario(usuario)) return usuario
   const { id } = await contexto.params
-  const ficha = leer().fichas.find((item) => item.id === id)
+  const ficha = await fichaPorId(id)
   if (!ficha || !puedeVerFicha(usuario, ficha)) return mal("No encontramos esa ficha.", 404)
   return json({ ficha })
 }
 
 export async function PATCH(req: Request, contexto: { params: Promise<{ id: string }> }) {
-  const usuario = exigirUsuario(req)
+  const usuario = await exigirUsuario(req)
   if (!esUsuario(usuario)) return usuario
   const { id } = await contexto.params
   if (!esId(id)) return mal("Identificador no válido.")
   const cuerpo = (await req.json().catch(() => null)) as Cuerpo | null
   if (!cuerpo?.tipo) return mal("Falta el tipo de cambio.")
-  const actual = leer().fichas.find((item) => item.id === id)
+  const actual = await fichaPorId(id)
   if (!actual || !puedeVerFicha(usuario, actual)) return mal("No encontramos esa ficha.", 404)
   const ahora = new Date().toISOString()
   const eventoId = cuerpo.eventoId || ""
@@ -80,9 +80,6 @@ export async function PATCH(req: Request, contexto: { params: Promise<{ id: stri
     return json({ error: resultado.error, errores: "errores" in resultado ? resultado.errores : undefined }, { status: 400 })
   }
   const ficha = resultado.ficha
-  guardar((db) => {
-    const indice = db.fichas.findIndex((item) => item.id === id)
-    if (indice >= 0) db.fichas[indice] = ficha
-  })
+  await guardarFicha(ficha)
   return json({ ficha })
 }

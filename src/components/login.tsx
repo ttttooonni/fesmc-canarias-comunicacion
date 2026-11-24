@@ -6,14 +6,14 @@ import { Marca } from "@/components/marca"
 import { useApp } from "@/components/proveedor"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { CLAVE_DEMO, CUENTAS_DEMO } from "@/lib/demo"
+import { CUENTAS_DEMO } from "@/lib/demo"
 import Link from "next/link"
 import { useState } from "react"
 
 export function Login() {
   const { entrar } = useApp()
-  const [email, setEmail] = useState(CUENTAS_DEMO[1].email)
-  const [password, setPassword] = useState(CLAVE_DEMO)
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
 
@@ -33,7 +33,7 @@ export function Login() {
         <p className="font-heading text-xs font-semibold tracking-[0.14em] text-primary uppercase">Redacción digital</p>
         <h1 className="mt-2 font-heading text-3xl font-semibold tracking-tight">Entra en la mesa del equipo</h1>
         <p className="mt-2 text-base leading-relaxed text-muted-foreground">
-          Fichas, circuito y calendario de UGT FeSMC Canarias. Las cuentas y los contenidos son de demostración.
+          Fichas, circuito y calendario de UGT FeSMC Canarias. La clave no está en la aplicación: la pone quien administra las cuentas.
         </p>
         <form className="mt-6 space-y-4" onSubmit={(evento) => void enviar(evento)}>
           <Campo id="email" etiqueta="Correo" error={error && !email ? "Escribe el correo." : undefined}>
@@ -68,9 +68,9 @@ export function Login() {
           </Button>
         </form>
         <div className="mt-6">
-          <p className="text-sm font-medium">Cuentas de demostración</p>
+          <p className="text-sm font-medium">Correos de la semilla de demostración</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Clave de todas: <span className="font-semibold text-foreground">{CLAVE_DEMO}</span>
+            Solo existen si alguien ejecutó la semilla. Rellenan el correo; la clave es la de DEMO_PASSWORD y no se publica aquí.
           </p>
           <ul className="mt-3 grid gap-2">
             {CUENTAS_DEMO.map((cuenta) => (
@@ -80,7 +80,6 @@ export function Login() {
                   className={controlClass("h-auto px-3 py-2 text-left")}
                   onClick={() => {
                     setEmail(cuenta.email)
-                    setPassword(CLAVE_DEMO)
                     setError(null)
                   }}
                 >

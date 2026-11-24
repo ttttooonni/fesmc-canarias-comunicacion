@@ -1,12 +1,15 @@
 import { fichasVisibles } from "@/lib/fichas"
 import { esUsuario, exigirUsuario, json } from "@/server/http"
-import { leer } from "@/server/store"
+import { listarCalendario, listarFichas, listarMetricas } from "@/server/repositorio"
 
 export async function GET(req: Request) {
-  const usuario = exigirUsuario(req)
+  const usuario = await exigirUsuario(req)
   if (!esUsuario(usuario)) return usuario
-  const db = leer()
-  const fichas = fichasVisibles(db.fichas, usuario).sort((a, b) => (a.actualizadoEn < b.actualizadoEn ? 1 : -1))
-  const calendario = [...db.calendario].sort((a, b) => a.fecha.localeCompare(b.fecha))
-  return json({ usuario, fichas, calendario, metricas: db.metricas })
+  const [fichasTodas, calendario, metricas] = await Promise.all([
+    listarFichas(),
+    listarCalendario(),
+    listarMetricas(),
+  ])
+  const fichas = fichasVisibles(fichasTodas, usuario).sort((a, b) => (a.actualizadoEn < b.actualizadoEn ? 1 : -1))
+  return json({ usuario, fichas, calendario, metricas })
 }

@@ -9,8 +9,8 @@ export function mal(error: string, status = 400) {
   return Response.json({ error }, { status })
 }
 
-export function exigirUsuario(req: Request): UsuarioPublico | Response {
-  const usuario = usuarioDe(req)
+export async function exigirUsuario(req: Request): Promise<UsuarioPublico | Response> {
+  const usuario = await usuarioDe(req)
   if (!usuario) return mal("Tienes que entrar para continuar.", 401)
   return usuario
 }

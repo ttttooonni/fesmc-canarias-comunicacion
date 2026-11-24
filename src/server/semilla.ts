@@ -1,4 +1,5 @@
-import { CLAVE_DEMO } from "@/lib/demo"
+// DATOS DE DEMOSTRACIÓN. No se carga al arrancar.
+// Solo lo usa `npm run db:seed`, que en producción se niega salvo ALLOW_DEMO_SEED=1.
 import type { CifrasCanal, Ficha, HistorialItem, Hueco, MetricaMes } from "@/lib/dominio"
 import { borradorPublicacion, textoParaCuentaInsular } from "@/lib/textos"
 import { crearClave } from "@/server/clave"
@@ -6,8 +7,9 @@ import type { BaseDatos, UsuarioInterno } from "@/server/tipos"
 
 function usuario(
   datos: Omit<UsuarioInterno, "salt" | "hash" | "ejemplo">,
+  clavePlana: string,
 ): UsuarioInterno {
-  const clave = crearClave(CLAVE_DEMO)
+  const clave = crearClave(clavePlana)
   return { ...datos, ejemplo: true, ...clave }
 }
 
@@ -672,17 +674,21 @@ function metricasNoviembre(): MetricaMes {
   }
 }
 
-export function crearSemilla(): BaseDatos {
+export function crearSemilla(clavePlana: string): BaseDatos {
+  if (clavePlana.trim().length < 8) {
+    throw new Error("La clave de demostración tiene que tener al menos 8 caracteres.")
+  }
+  const cuenta = (datos: Omit<UsuarioInterno, "salt" | "hash" | "ejemplo">) => usuario(datos, clavePlana)
   return {
     version: 1,
     usuarios: [
-      usuario({ id: NURIA, nombre: "Nuria Campos", email: "coordinacion@demo.ugt-fesmc.local", rol: "coordinacion", isla: null, sector: null }),
-      usuario({ id: IAGO, nombre: "Iago Martín", email: "gestion@demo.ugt-fesmc.local", rol: "gestor", isla: null, sector: null }),
-      usuario({ id: YAIZA, nombre: "Yaiza León", email: "lanzarote@demo.ugt-fesmc.local", rol: "insular", isla: "lanzarote", sector: null }),
-      usuario({ id: OMAR, nombre: "Omar Betancor", email: "tenerife@demo.ugt-fesmc.local", rol: "insular", isla: "tenerife", sector: null }),
-      usuario({ id: AYOZE, nombre: "Ayoze Quintero", email: "grancanaria@demo.ugt-fesmc.local", rol: "insular", isla: "gran_canaria", sector: null }),
-      usuario({ id: CARLA, nombre: "Carla Mesa", email: "hosteleria@demo.ugt-fesmc.local", rol: "sectorial", isla: null, sector: "hosteleria" }),
-      usuario({ id: HECTOR, nombre: "Héctor Déniz", email: "juridico@demo.ugt-fesmc.local", rol: "juridico", isla: null, sector: null }),
+      cuenta({ id: NURIA, nombre: "Nuria Campos", email: "coordinacion@demo.ugt-fesmc.local", rol: "coordinacion", isla: null, sector: null }),
+      cuenta({ id: IAGO, nombre: "Iago Martín", email: "gestion@demo.ugt-fesmc.local", rol: "gestor", isla: null, sector: null }),
+      cuenta({ id: YAIZA, nombre: "Yaiza León", email: "lanzarote@demo.ugt-fesmc.local", rol: "insular", isla: "lanzarote", sector: null }),
+      cuenta({ id: OMAR, nombre: "Omar Betancor", email: "tenerife@demo.ugt-fesmc.local", rol: "insular", isla: "tenerife", sector: null }),
+      cuenta({ id: AYOZE, nombre: "Ayoze Quintero", email: "grancanaria@demo.ugt-fesmc.local", rol: "insular", isla: "gran_canaria", sector: null }),
+      cuenta({ id: CARLA, nombre: "Carla Mesa", email: "hosteleria@demo.ugt-fesmc.local", rol: "sectorial", isla: null, sector: "hosteleria" }),
+      cuenta({ id: HECTOR, nombre: "Héctor Déniz", email: "juridico@demo.ugt-fesmc.local", rol: "juridico", isla: null, sector: null }),
     ],
     sesiones: [],
     fichas: fichasDeEjemplo(),

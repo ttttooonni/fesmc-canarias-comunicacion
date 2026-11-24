@@ -1,7 +1,5 @@
 import type { RolId } from "@/lib/dominio"
 
-export const CLAVE_DEMO = "canarias-demo"
-
 export type CuentaDemo = {
   email: string
   nombre: string
