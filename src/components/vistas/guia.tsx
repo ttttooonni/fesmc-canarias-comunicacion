@@ -1,3 +1,4 @@
+import { RetratoSindiYCato } from "@/components/retrato-sindi-cato"
 import { GUIA_TONO, PASOS_CIRCUITO } from "@/lib/contenido"
 import Link from "next/link"
 
@@ -11,18 +12,24 @@ export function Guia() {
           Cómo habla el equipo de comunicación digital de UGT FeSMC Canarias. Esta guía viaja con la aplicación: si ya la abriste una vez, puedes leerla sin red.
         </p>
       </header>
-      <figure className="grid gap-4 rounded-2xl bg-card p-4 ring-1 ring-foreground/10 sm:grid-cols-[auto_1fr] sm:items-center">
-        <SindiYCato />
+      <figure className="grid gap-4 rounded-2xl bg-card p-4 shadow-[0_16px_40px_-24px_rgba(227,6,19,0.35)] ring-1 ring-foreground/10 sm:grid-cols-[14rem_1fr] sm:items-center">
+        <RetratoSindiYCato variante="compacto" pie={false} className="rounded-2xl shadow-none" />
         <figcaption className="text-sm leading-relaxed">
           <span className="font-heading text-lg font-semibold">Sindi y Cato te lo cuentan</span>
           <span className="mt-1 block text-muted-foreground">
             Sindi trae la duda de una persona trabajadora. Cato responde con el derecho, en corto, y recuerda que la serie no sustituye a la asesoría.
           </span>
+          <Link href="/sindi-cato" className="mt-3 inline-block font-medium text-primary underline-offset-4 hover:underline">
+            Abrir el área de Sindi y Cato
+          </Link>
         </figcaption>
       </figure>
       {GUIA_TONO.map((bloque) => (
-        <section key={bloque.id} className="space-y-3">
+        <section key={bloque.id} id={bloque.id} className="scroll-mt-24 space-y-3">
           <h2 className="font-heading text-2xl font-semibold">{bloque.titulo}</h2>
+          {bloque.id === "sindi" ? (
+            <RetratoSindiYCato variante="completo" className="mx-auto max-w-md" />
+          ) : null}
           {bloque.parrafos.map((parrafo) => (
             <p key={parrafo} className="max-w-3xl text-base leading-relaxed">
               {parrafo}
@@ -34,6 +41,13 @@ export function Guia() {
                 <li key={item}>{item}</li>
               ))}
             </ul>
+          ) : null}
+          {bloque.id === "sindi" ? (
+            <p>
+              <Link href="/sindi-cato" className="font-medium text-primary underline-offset-4 hover:underline">
+                Ir al área de creación y administración de Sindi y Cato
+              </Link>
+            </p>
           ) : null}
         </section>
       ))}
@@ -54,22 +68,5 @@ export function Guia() {
         </Link>
       </p>
     </main>
-  )
-}
-
-function SindiYCato() {
-  return (
-    <svg viewBox="0 0 220 120" className="h-28 w-full max-w-[220px]" role="img" aria-label="Dibujo sencillo de Sindi, con carpeta, y Cato, un gato con megáfono">
-      <rect width="220" height="120" rx="16" fill="#F8E8E6" />
-      <circle cx="58" cy="48" r="16" fill="#1C1C1C" />
-      <rect x="42" y="66" width="32" height="34" rx="8" fill="#E30613" />
-      <rect x="78" y="70" width="22" height="28" rx="3" fill="#FFFFFF" stroke="#1C1C1C" />
-      <path d="M150 78c8-28 28-36 36-18 6 14-4 24-14 26" fill="#E30613" />
-      <circle cx="156" cy="46" r="14" fill="#1C1C1C" />
-      <path d="M146 38l-8-10 10 4zm20 0l8-10-10 4z" fill="#1C1C1C" />
-      <circle cx="151" cy="45" r="1.6" fill="#fff" />
-      <circle cx="160" cy="45" r="1.6" fill="#fff" />
-      <path d="M176 58h22l-6 10h-12z" fill="#1C1C1C" />
-    </svg>
   )
 }

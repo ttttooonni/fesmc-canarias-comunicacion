@@ -1,4 +1,4 @@
-const CACHE = "ugt-com-v5"
+const CACHE = "ugt-com-v6"
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -9,6 +9,7 @@ self.addEventListener("install", (event) => {
         "",
         "guia/",
         "guia/seguridad/",
+        "sindi-cato/",
         "fichas/",
         "calendario/",
         "circuito/",
@@ -20,6 +21,8 @@ self.addEventListener("install", (event) => {
         "icons/icon-512.png",
         "icons/icon-maskable-512.png",
         "icons/apple-touch-icon.png",
+        "imagenes/sindi-y-cato.webp",
+        "imagenes/sindi-y-cato.jpg",
       ]
       await Promise.all(
         rutas.map(async (ruta) => {
@@ -53,7 +56,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(peticion.url)
   if (url.origin !== self.location.origin) return
 
-  if (url.pathname.includes("/_next/static/") || url.pathname.includes("/icons/")) {
+  if (url.pathname.includes("/_next/static/") || url.pathname.includes("/icons/") || url.pathname.includes("/imagenes/")) {
     event.respondWith(
       caches.open(CACHE).then(async (cache) => {
         const guardado = await cache.match(peticion)

@@ -1,6 +1,7 @@
 "use client"
 
 import { AvisoHuecos } from "@/components/aviso-huecos"
+import { RetratoSindiYCato } from "@/components/retrato-sindi-cato"
 import { PanelInstalar } from "@/components/instalar"
 import { useApp } from "@/components/proveedor"
 import { TarjetaFicha } from "@/components/tarjeta-ficha"
@@ -98,6 +99,22 @@ export function Inicio() {
             <p className="mt-1 font-heading text-3xl font-semibold">{valor}</p>
           </div>
         ))}
+      </section>
+
+
+      <section>
+        <Link href="/sindi-cato" className="block overflow-hidden rounded-3xl bg-card ring-1 ring-foreground/10 focus-visible:ring-3 focus-visible:ring-ring/40">
+          <div className="grid gap-0 sm:grid-cols-[14rem_1fr] sm:items-center">
+            <RetratoSindiYCato variante="compacto" pie={false} className="rounded-none shadow-none ring-0 sm:rounded-none" />
+            <div className="p-4 sm:p-5">
+              <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">Sindi y Cato</p>
+              <h2 className="mt-1 font-heading text-xl font-semibold">Área de creación y administración</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Personajes, episodios, producción, documentación, revisión y publicaciones. Todo en este dispositivo.
+              </p>
+            </div>
+          </div>
+        </Link>
       </section>
 
       {veMapa ? <AvisoHuecos fichas={fichas} mes={mes} /> : null}

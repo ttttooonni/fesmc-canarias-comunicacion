@@ -48,7 +48,11 @@ El tutorial de la primera apertura, y Más → Cómo funciona, lo cuenta con cal
 
 ## Copias y ejemplo
 
-En Inicio: **Cargar ejemplo** mete fichas y el calendario de diciembre de 2026, marcados como ejemplo. **Descargar copia** e **Importar copia** mueven un JSON entre teléfonos.
+En Inicio: **Cargar ejemplo** mete fichas, el calendario de diciembre de 2026 y un episodio de ejemplo de Sindi y Cato, marcados como ejemplo. **Descargar copia** e **Importar copia** mueven un JSON entre teléfonos, incluida el área de la serie.
+
+## Sindi y Cato
+
+La sección `/sindi-cato/` es el área de creación y administración de la serie. El panel (personajes, episodios, producción, documentación, revisión y publicaciones) se guarda en el mismo dispositivo. Desde Revisión, **Compartir por WhatsApp** envía un enlace `#/importar-sindi?d=...` que importa el episodio.
 
 No hay contraseñas.
 

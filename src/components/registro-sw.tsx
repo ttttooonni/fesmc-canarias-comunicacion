@@ -2,18 +2,21 @@
 
 import { useEffect } from "react"
 
-const CACHE = "ugt-com-v5"
+const CACHE = "ugt-com-v6"
 const base = process.env.NEXT_PUBLIC_BASE_PATH || ""
 const PRECACHE = [
   `${base}/`,
   `${base}/guia/`,
   `${base}/guia/seguridad/`,
+  `${base}/sindi-cato/`,
   `${base}/offline.html`,
   `${base}/manifest.webmanifest`,
   `${base}/icons/icon-192.png`,
   `${base}/icons/icon-512.png`,
   `${base}/icons/icon-maskable-512.png`,
   `${base}/icons/apple-touch-icon.png`,
+  `${base}/imagenes/sindi-y-cato.webp`,
+  `${base}/imagenes/sindi-y-cato.jpg`,
 ]
 
 export function RegistroSw() {

@@ -42,6 +42,12 @@ const PASOS = [
     dibujo: "cal",
   },
   {
+    id: "sindi-cato",
+    titulo: "Sindi y Cato",
+    texto: "En Sindi y Cato está el área de creación de la serie: fichas de los personajes, episodios, prompts, documentación, revisión y publicaciones. Cada paso se queda en el teléfono y se puede compartir por WhatsApp.",
+    dibujo: "sindi",
+  },
+  {
     id: "offline",
     titulo: "Sin cobertura",
     texto: "Después de abrirla una vez, la guía, el checklist y la mesa siguen disponibles sin red. Instálala para tenerla como una aplicación.",
@@ -121,6 +127,7 @@ function Dibujo({ tipo }: { tipo: (typeof PASOS)[number]["dibujo"] }) {
       {tipo === "enlace" ? <path d="M62 50l10-10a12 12 0 0 1 17 17L79 67M98 50l-10 10a12 12 0 0 1-17-17L81 33" stroke="#E30613" strokeWidth="4" fill="none" /> : null}
       {tipo === "cal" ? <><rect x="48" y="30" width="64" height="46" rx="6" fill="#F3EFEA" /><path d="M48 42h64" stroke="#E30613" strokeWidth="4" /><circle cx="66" cy="56" r="3" fill="#E30613" /><circle cx="80" cy="56" r="3" fill="#1C1C1C" /><circle cx="94" cy="56" r="3" fill="#1C1C1C" /></> : null}
       {tipo === "offline" ? <path d="M50 58c8-16 52-16 60 0M62 66c6-8 30-8 36 0M80 76h.1" stroke="#E30613" strokeWidth="4" fill="none" strokeLinecap="round" /> : null}
+      {tipo === "sindi" ? <><circle cx="64" cy="44" r="10" fill="#1C1C1C" /><rect x="50" y="56" width="28" height="20" rx="6" fill="#E30613" /><circle cx="104" cy="44" r="10" fill="#1C1C1C" /><rect x="90" y="56" width="28" height="20" rx="6" fill="#1C1C1C" /></> : null}
       {tipo === "copia" ? <><rect x="50" y="26" width="40" height="50" rx="4" fill="#F3EFEA" /><rect x="66" y="34" width="40" height="50" rx="4" fill="#E30613" /></> : null}
     </svg>
   )

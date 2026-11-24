@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { nombreRol } from "@/lib/dominio"
 import { cn } from "@/lib/utils"
-import { BookOpen, CalendarDays, ChartColumn, House, Inbox, Menu, Route, Shield, SquareLibrary } from "lucide-react"
+import { BookOpen, CalendarDays, ChartColumn, Clapperboard, House, Inbox, Menu, Route, Shield, SquareLibrary } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
@@ -23,6 +23,7 @@ const PRINCIPALES = [
 ]
 
 const MAS = [
+  { href: "/sindi-cato", etiqueta: "Sindi y Cato", icono: Clapperboard },
   { href: "/registro", etiqueta: "Registro", icono: SquareLibrary },
   { href: "/metricas", etiqueta: "Métricas", icono: ChartColumn },
   { href: "/guia", etiqueta: "Guía y tono", icono: BookOpen },
@@ -40,7 +41,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const [mas, setMas] = useState(false)
-  const publica = pathname === "/guia" || pathname === "/guia/seguridad"
+  const publica = pathname === "/guia" || pathname === "/guia/seguridad" || pathname === "/sindi-cato"
 
   if (!app.listo) {
     return (
@@ -179,7 +180,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <li>
             <button
               type="button"
-              className="flex min-h-14 w-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-muted-foreground"
+              className={cn(
+                "flex min-h-14 w-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-muted-foreground",
+                MAS.some((item) => activo(pathname, item.href)) && "text-primary",
+              )}
               aria-expanded={mas}
               onClick={() => setMas(true)}
             >
