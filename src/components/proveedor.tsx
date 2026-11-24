@@ -1,36 +1,51 @@
 "use client"
 
 import { construirHueco, leerDatosHueco } from "@/lib/calendario-logica"
-import { borrarCache, guardarCache, leerCache, type CacheLocal, type TareaPendiente } from "@/lib/cliente/idb"
-import type { Ficha, Hueco, MetricaMes, UsuarioPublico } from "@/lib/dominio"
+import { guardarMesa, leerMesa, type MesaLocal } from "@/lib/cliente/idb"
+import type { Ficha, Hueco, IslaId, MetricaMes, RolId, SectorId, UsuarioPublico } from "@/lib/dominio"
+import { calendarioDeEjemplo, fichasDeEjemplo, metricaDeEjemplo } from "@/lib/ejemplo"
 import { actualizarDatos, actualizarTextos, aclararFicha, aplicarTransicion, construirFicha, registrarCompartido } from "@/lib/fichas"
 import { construirMetrica } from "@/lib/metricas-logica"
+import { decodificarPaquete, fichaDesdePaquete, fusionarFicha } from "@/lib/whatsapp"
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react"
 
-type Foto = {
+type Resultado = { ok: true; ficha?: Ficha } | { ok: false; error: string; errores?: Record<string, string> }
+
+type PerfilNuevo = {
+  nombre: string
+  rol: RolId
+  isla: IslaId | null
+  sector: SectorId | null
+}
+
+type Estado = {
+  listo: boolean
   usuario: UsuarioPublico | null
   fichas: Ficha[]
   calendario: Hueco[]
   metricas: MetricaMes[]
-}
-
-type Estado = Foto & {
-  listo: boolean
   offline: boolean
   pendientes: number
   aviso: string | null
+  tutorialVisto: boolean
+  tutorialAbierto: boolean
+  importadaId: string | null
 }
 
-type Resultado = { ok: true } | { ok: false; error: string; errores?: Record<string, string> }
-
 type Valor = Estado & {
-  entrar: (email: string, password: string) => Promise<string | null>
-  salir: () => Promise<void>
+  guardarPerfil: (perfil: PerfilNuevo) => void
+  salir: () => void
   crearFicha: (datos: unknown) => Promise<Resultado & { id?: string }>
   cambiarFicha: (id: string, cuerpo: Record<string, unknown>) => Promise<Resultado>
   guardarHueco: (datos: unknown, idExistente?: string) => Promise<Resultado>
   guardarMetrica: (mes: string, entrada: unknown) => Promise<Resultado>
+  cargarEjemplo: () => void
+  exportarCopia: () => void
+  importarCopia: (texto: string) => { ok: true } | { ok: false; error: string }
+  abrirTutorial: () => void
+  cerrarTutorial: () => void
   limpiarAviso: () => void
+  limpiarImportada: () => void
 }
 
 const Contexto = createContext<Valor | null>(null)
@@ -44,254 +59,136 @@ const VACIO: Estado = {
   offline: false,
   pendientes: 0,
   aviso: null,
-}
-
-function empaquetar(foto: Foto, bandeja: TareaPendiente[]): CacheLocal | null {
-  if (!foto.usuario) return null
-  return {
-    usuario: foto.usuario,
-    fichas: foto.fichas,
-    calendario: foto.calendario,
-    metricas: foto.metricas,
-    bandeja,
-    guardadoEn: new Date().toISOString(),
-  }
-}
-
-async function leerJson(res: Response): Promise<Record<string, unknown>> {
-  return (await res.json().catch(() => ({}))) as Record<string, unknown>
+  tutorialVisto: false,
+  tutorialAbierto: false,
+  importadaId: null,
 }
 
 export function Proveedor({ children }: { children: React.ReactNode }) {
   const [estado, setEstado] = useState<Estado>(VACIO)
-  const foto = useRef<Foto>(VACIO)
-  const bandeja = useRef<TareaPendiente[]>([])
-  const serie = useRef(Promise.resolve())
+  const ref = useRef(estado)
+  useEffect(() => {
+    ref.current = estado
+  })
 
-  function publicar(siguiente: Foto, extra: Partial<Estado> = {}) {
-    foto.current = siguiente
-    setEstado((prev) => ({
-      ...prev,
-      ...siguiente,
-      ...extra,
-      pendientes: bandeja.current.length,
-      listo: true,
-    }))
-  }
-
-  async function persistir(siguiente: Foto) {
-    const cache = empaquetar(siguiente, bandeja.current)
-    if (cache) await guardarCache(cache)
-  }
-
-  async function refrescar() {
-    const res = await fetch("/api/bootstrap")
-    if (res.status === 401) {
-      bandeja.current = []
-      await borrarCache()
-      publicar({ usuario: null, fichas: [], calendario: [], metricas: [] }, { offline: false, aviso: null })
-      return
-    }
-    if (!res.ok) throw new Error("bootstrap")
-    const datos = await leerJson(res)
-    const siguiente: Foto = {
-      usuario: datos.usuario as UsuarioPublico,
-      fichas: (datos.fichas as Ficha[]) ?? [],
-      calendario: (datos.calendario as Hueco[]) ?? [],
-      metricas: (datos.metricas as MetricaMes[]) ?? [],
-    }
-    await persistir(siguiente)
-    publicar(siguiente, { offline: false })
-  }
-
-  async function vaciarBandeja() {
-    if (!bandeja.current.length) return
-    const queda: TareaPendiente[] = []
-    let cortar = false
-    for (const tarea of bandeja.current) {
-      if (cortar) {
-        queda.push(tarea)
-        continue
+  function publicar(parcial: Partial<Estado>, mesa?: Partial<MesaLocal>) {
+    setEstado((prev) => {
+      const siguiente = { ...prev, ...parcial, listo: true }
+      ref.current = siguiente
+      const guardar: MesaLocal = {
+        perfil: mesa?.perfil !== undefined ? mesa.perfil : siguiente.usuario,
+        fichas: mesa?.fichas ?? siguiente.fichas,
+        calendario: mesa?.calendario ?? siguiente.calendario,
+        metricas: mesa?.metricas ?? siguiente.metricas,
+        tutorialVisto: mesa?.tutorialVisto ?? siguiente.tutorialVisto,
+        guardadoEn: new Date().toISOString(),
       }
-      try {
-        const res = await fetch(tarea.path, {
-          method: tarea.method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(tarea.body),
-        })
-        if (res.status >= 500 || res.status === 401) {
-          queda.push(tarea)
-          cortar = true
-        }
-      } catch {
-        queda.push(tarea)
-        cortar = true
-      }
-    }
-    bandeja.current = queda
-    if (!cortar) await refrescar()
-    else await persistir(foto.current)
-    setEstado((prev) => ({ ...prev, pendientes: bandeja.current.length, offline: cortar }))
+      void guardarMesa(guardar)
+      return siguiente
+    })
   }
 
   useEffect(() => {
     let vivo = true
-    async function arrancar() {
-      const cache = await leerCache().catch(() => null)
-      if (!vivo) return
-      if (cache?.usuario) {
-        bandeja.current = cache.bandeja ?? []
-        publicar(
-          {
-            usuario: cache.usuario,
-            fichas: cache.fichas,
-            calendario: cache.calendario,
-            metricas: cache.metricas,
-          },
-          { offline: typeof navigator !== "undefined" ? !navigator.onLine : false },
-        )
-      } else if (vivo) {
-        setEstado((prev) => ({ ...prev, listo: true }))
-      }
-      try {
-        await refrescar()
-        await vaciarBandeja()
-      } catch {
+    void leerMesa()
+      .then((mesa) => {
         if (!vivo) return
-        if (cache?.usuario) {
-          setEstado((prev) => ({
-            ...prev,
-            listo: true,
-            offline: true,
-            aviso: "Sin conexión. Estás viendo la copia de este dispositivo. La guía y el checklist siguen disponibles.",
-          }))
-        } else {
-          setEstado((prev) => ({ ...prev, listo: true }))
+        const fichasBase = mesa?.fichas ?? []
+        const traida = leerHash(fichasBase)
+        const fichas = traida?.fichas ?? fichasBase
+        const siguiente: Estado = {
+          ...VACIO,
+          listo: true,
+          usuario: mesa?.perfil ?? null,
+          fichas,
+          calendario: mesa?.calendario ?? [],
+          metricas: mesa?.metricas ?? [],
+          tutorialVisto: mesa?.tutorialVisto ?? false,
+          offline: typeof navigator !== "undefined" ? !navigator.onLine : false,
+          importadaId: traida?.id ?? null,
+          aviso: traida?.aviso ?? null,
         }
-      }
+        ref.current = siguiente
+        setEstado(siguiente)
+        if (traida) {
+          void guardarMesa({
+            perfil: siguiente.usuario,
+            fichas,
+            calendario: siguiente.calendario,
+            metricas: siguiente.metricas,
+            tutorialVisto: siguiente.tutorialVisto,
+            guardadoEn: new Date().toISOString(),
+          })
+          history.replaceState(null, "", `${window.location.pathname}${window.location.search}`)
+        }
+      })
+      .catch(() => {
+        if (vivo) setEstado((prev) => ({ ...prev, listo: true }))
+      })
+    function red() {
+      setEstado((prev) => ({ ...prev, offline: !navigator.onLine }))
     }
-    void arrancar()
-    function alVolver() {
-      if (navigator.onLine) void vaciarBandeja().catch(() => undefined)
-      else setEstado((prev) => ({ ...prev, offline: true }))
-    }
-    window.addEventListener("online", alVolver)
-    window.addEventListener("offline", alVolver)
+    window.addEventListener("online", red)
+    window.addEventListener("offline", red)
     return () => {
       vivo = false
-      window.removeEventListener("online", alVolver)
-      window.removeEventListener("offline", alVolver)
+      window.removeEventListener("online", red)
+      window.removeEventListener("offline", red)
     }
-    // Arranque único.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function enSerie<T>(tarea: () => Promise<T>): Promise<T> {
-    const corre = serie.current.then(tarea, tarea)
-    serie.current = corre.then(
-      () => undefined,
-      () => undefined,
-    )
-    return corre
-  }
-
-  async function enviar(opciones: {
-    path: string
-    method: "POST" | "PATCH" | "PUT"
-    body: unknown
-    siguiente: Foto
-  }): Promise<Resultado> {
-    return enSerie(async () => {
-      const previo = foto.current
-      publicar(opciones.siguiente, { aviso: null })
-      await persistir(opciones.siguiente)
-      const encolar = async () => {
-        bandeja.current = [
-          ...bandeja.current,
-          { id: crypto.randomUUID(), path: opciones.path, method: opciones.method, body: opciones.body },
-        ]
-        await persistir(foto.current)
-        setEstado((prev) => ({
-          ...prev,
-          offline: true,
-          pendientes: bandeja.current.length,
-          aviso: "Sin red. El cambio queda en este dispositivo y se enviará al volver la conexión.",
-        }))
-      }
-      if (typeof navigator !== "undefined" && !navigator.onLine) {
-        await encolar()
-        return { ok: true }
-      }
-      try {
-        const res = await fetch(opciones.path, {
-          method: opciones.method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(opciones.body),
-        })
-        const datos = await leerJson(res)
-        if (!res.ok) {
-          publicar(previo, { aviso: null })
-          await persistir(previo)
-          return {
-            ok: false,
-            error: typeof datos.error === "string" ? datos.error : "No se pudo guardar.",
-            errores: datos.errores as Record<string, string> | undefined,
-          }
-        }
-        const fusion = fusionar(foto.current, datos)
-        publicar(fusion, { offline: false })
-        await persistir(fusion)
-        return { ok: true }
-      } catch {
-        await encolar()
-        return { ok: true }
-      }
-    })
-  }
+  useEffect(() => {
+    function alHash() {
+      const traida = leerHash(ref.current.fichas)
+      if (!traida) return
+      const fichas = traida.fichas
+      publicar(
+        { fichas, importadaId: traida.id, aviso: traida.aviso },
+        { fichas },
+      )
+      history.replaceState(null, "", `${window.location.pathname}${window.location.search}`)
+    }
+    window.addEventListener("hashchange", alHash)
+    return () => window.removeEventListener("hashchange", alHash)
+  }, [])
 
   const valor = useMemo<Valor>(() => {
     return {
       ...estado,
       limpiarAviso: () => setEstado((prev) => ({ ...prev, aviso: null })),
-      entrar: async (email, password) => {
-        try {
-          const res = await fetch("/api/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-          })
-          const datos = await leerJson(res)
-          if (!res.ok) return typeof datos.error === "string" ? datos.error : "No se pudo entrar."
-          await refrescar()
-          return null
-        } catch {
-          return "Sin conexión. La primera entrada en este dispositivo necesita red."
+      limpiarImportada: () => setEstado((prev) => ({ ...prev, importadaId: null })),
+      abrirTutorial: () => setEstado((prev) => ({ ...prev, tutorialAbierto: true })),
+      cerrarTutorial: () => {
+        publicar({ tutorialAbierto: false, tutorialVisto: true }, { tutorialVisto: true })
+      },
+      guardarPerfil: (perfil) => {
+        const usuario: UsuarioPublico = {
+          id: estado.usuario?.id || crypto.randomUUID(),
+          nombre: perfil.nombre.trim(),
+          email: "",
+          rol: perfil.rol,
+          isla: perfil.isla,
+          sector: perfil.sector,
+          ejemplo: false,
         }
+        const abrir = !estado.tutorialVisto
+        publicar({ usuario, tutorialAbierto: abrir }, { perfil: usuario })
       },
-      salir: async () => {
-        await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined)
-        bandeja.current = []
-        await borrarCache()
-        publicar({ usuario: null, fichas: [], calendario: [], metricas: [] }, { offline: false, aviso: null })
-      },
+      salir: () => publicar({ usuario: null }, { perfil: null }),
       crearFicha: async (datos) => {
-        const usuario = foto.current.usuario
-        if (!usuario) return { ok: false, error: "Tienes que entrar." }
+        const usuario = ref.current.usuario
+        if (!usuario) return { ok: false, error: "Elige primero tu perfil en este dispositivo." }
         const id = crypto.randomUUID()
-        const local = construirFicha({ id, datos, usuario, ahora: new Date().toISOString() })
-        if (!local.ok) return { ok: false, error: local.error, errores: local.errores }
-        const resultado = await enviar({
-          path: "/api/fichas",
-          method: "POST",
-          body: { id, ...(datos as object) },
-          siguiente: { ...foto.current, fichas: [local.ficha, ...foto.current.fichas] },
-        })
-        return resultado.ok ? { ok: true, id } : resultado
+        const creada = construirFicha({ id, datos, usuario, ahora: new Date().toISOString() })
+        if (!creada.ok) return creada
+        const fichas = [creada.ficha, ...ref.current.fichas]
+        publicar({ fichas }, { fichas })
+        return { ok: true, id, ficha: creada.ficha }
       },
       cambiarFicha: async (id, cuerpo) => {
-        const usuario = foto.current.usuario
-        const ficha = foto.current.fichas.find((item) => item.id === id)
-        if (!usuario || !ficha) return { ok: false, error: "No está en este dispositivo." }
+        const usuario = ref.current.usuario
+        const ficha = ref.current.fichas.find((item) => item.id === id)
+        if (!usuario || !ficha) return { ok: false, error: "Esa ficha no está en este dispositivo." }
         const eventoId = typeof cuerpo.eventoId === "string" ? cuerpo.eventoId : crypto.randomUUID()
         const ahora = new Date().toISOString()
         const tipo = cuerpo.tipo
@@ -321,81 +218,121 @@ export function Proveedor({ children }: { children: React.ReactNode }) {
         } else if (tipo === "compartir") {
           local = registrarCompartido({ ficha, isla: cuerpo.isla as Ficha["isla"], eventoId, usuario, ahora })
         } else local = { ok: false, error: "No reconozco ese cambio." }
-        if (!local.ok) return { ok: false, error: local.error, errores: local.errores }
-        return enviar({
-          path: `/api/fichas/${id}`,
-          method: "PATCH",
-          body: { ...cuerpo, eventoId },
-          siguiente: {
-            ...foto.current,
-            fichas: foto.current.fichas.map((item) => (item.id === id ? local.ficha : item)),
-          },
-        })
+        if (!local.ok) return local
+        const fichas = ref.current.fichas.map((item) => (item.id === id ? local.ficha : item))
+        publicar({ fichas }, { fichas })
+        return { ok: true, ficha: local.ficha }
       },
       guardarHueco: async (datos, idExistente) => {
         const leido = leerDatosHueco(datos)
         if (!leido.ok) return { ok: false, error: leido.error }
         const id = idExistente || crypto.randomUUID()
         const local = construirHueco({ id, datos: leido.datos, ejemplo: false })
-        if (!local.ok) return { ok: false, error: local.error }
+        if (!local.ok) return local
         const calendario = idExistente
-          ? foto.current.calendario.map((hueco) => (hueco.id === id ? local.hueco : hueco))
-          : [...foto.current.calendario, local.hueco].sort((a, b) => a.fecha.localeCompare(b.fecha))
-        return enviar({
-          path: idExistente ? `/api/calendario/${id}` : "/api/calendario",
-          method: idExistente ? "PATCH" : "POST",
-          body: { id, ...leido.datos },
-          siguiente: { ...foto.current, calendario },
-        })
+          ? ref.current.calendario.map((hueco) => (hueco.id === id ? local.hueco : hueco))
+          : [...ref.current.calendario, local.hueco].sort((a, b) => a.fecha.localeCompare(b.fecha))
+        publicar({ calendario }, { calendario })
+        return { ok: true }
       },
       guardarMetrica: async (mes, entrada) => {
-        const usuario = foto.current.usuario
-        if (!usuario) return { ok: false, error: "Tienes que entrar." }
+        const usuario = ref.current.usuario
+        if (!usuario) return { ok: false, error: "Elige primero tu perfil." }
         const local = construirMetrica({ mes, entrada, usuario, ahora: new Date().toISOString() })
-        if (!local.ok) return { ok: false, error: local.error }
-        const metricas = foto.current.metricas.some((item) => item.mes === mes)
-          ? foto.current.metricas.map((item) => (item.mes === mes ? local.metrica : item))
-          : [...foto.current.metricas, local.metrica]
-        return enviar({
-          path: `/api/metricas/${mes}`,
-          method: "PUT",
-          body: entrada,
-          siguiente: { ...foto.current, metricas },
-        })
+        if (!local.ok) return local
+        const metricas = ref.current.metricas.some((item) => item.mes === mes)
+          ? ref.current.metricas.map((item) => (item.mes === mes ? local.metrica : item))
+          : [...ref.current.metricas, local.metrica]
+        publicar({ metricas }, { metricas })
+        return { ok: true }
+      },
+      cargarEjemplo: () => {
+        const actuales = new Set(ref.current.fichas.map((ficha) => ficha.id))
+        const fichas = [...fichasDeEjemplo().filter((ficha) => !actuales.has(ficha.id)), ...ref.current.fichas]
+        const huecos = new Set(ref.current.calendario.map((hueco) => hueco.id))
+        const calendario = [...ref.current.calendario, ...calendarioDeEjemplo().filter((hueco) => !huecos.has(hueco.id))].sort(
+          (a, b) => a.fecha.localeCompare(b.fecha),
+        )
+        const metricas = ref.current.metricas.some((item) => item.mes === "2026-11")
+          ? ref.current.metricas
+          : [...ref.current.metricas, metricaDeEjemplo()]
+        publicar(
+          { fichas, calendario, metricas, aviso: "Ejemplo cargado. Son datos ficticios, no de las cuentas oficiales." },
+          { fichas, calendario, metricas },
+        )
+      },
+      exportarCopia: () => {
+        const copia = {
+          tipo: "ugt-fesmc-copia",
+          version: 1,
+          perfil: ref.current.usuario,
+          fichas: ref.current.fichas,
+          calendario: ref.current.calendario,
+          metricas: ref.current.metricas,
+        }
+        const blob = new Blob([JSON.stringify(copia, null, 2)], { type: "application/json" })
+        const url = URL.createObjectURL(blob)
+        const enlace = document.createElement("a")
+        enlace.href = url
+        enlace.download = "ugt-fesmc-copia.json"
+        enlace.click()
+        URL.revokeObjectURL(url)
+      },
+      importarCopia: (texto) => {
+        try {
+          const copia = JSON.parse(texto) as {
+            tipo?: string
+            fichas?: Ficha[]
+            calendario?: Hueco[]
+            metricas?: MetricaMes[]
+          }
+          if (copia.tipo !== "ugt-fesmc-copia" || !Array.isArray(copia.fichas)) {
+            return { ok: false, error: "Ese archivo no es una copia de esta aplicación." }
+          }
+          const mapa = new Map(ref.current.fichas.map((ficha) => [ficha.id, ficha]))
+          for (const ficha of copia.fichas) {
+            const fusion = fusionarFicha(mapa.get(ficha.id), ficha)
+            mapa.set(ficha.id, fusion.ficha)
+          }
+          const fichas = [...mapa.values()]
+          const huecos = new Map(ref.current.calendario.map((hueco) => [hueco.id, hueco]))
+          for (const hueco of copia.calendario ?? []) huecos.set(hueco.id, hueco)
+          const calendario = [...huecos.values()].sort((a, b) => a.fecha.localeCompare(b.fecha))
+          const meses = new Map(ref.current.metricas.map((item) => [item.mes, item]))
+          for (const metrica of copia.metricas ?? []) meses.set(metrica.mes, metrica)
+          const metricas = [...meses.values()]
+          publicar({ fichas, calendario, metricas, aviso: "Copia importada en este dispositivo." }, { fichas, calendario, metricas })
+          return { ok: true }
+        } catch {
+          return { ok: false, error: "No se pudo leer el archivo." }
+        }
       },
     }
-    // El valor se rehace con el estado visible. Las funciones leen los refs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estado])
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>
 }
 
-function fusionar(actual: Foto, datos: Record<string, unknown>): Foto {
-  const siguiente = { ...actual }
-  if (datos.ficha && typeof datos.ficha === "object") {
-    const ficha = datos.ficha as Ficha
-    const existe = siguiente.fichas.some((item) => item.id === ficha.id)
-    siguiente.fichas = existe
-      ? siguiente.fichas.map((item) => (item.id === ficha.id ? ficha : item))
-      : [ficha, ...siguiente.fichas]
+function leerHash(fichas: Ficha[]): { fichas: Ficha[]; id: string; aviso: string } | null {
+  if (typeof window === "undefined") return null
+  const hash = window.location.hash
+  if (!hash.startsWith("#/importar")) return null
+  const consulta = hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : ""
+  const dato = new URLSearchParams(consulta).get("d")
+  if (!dato) return null
+  const paquete = decodificarPaquete(dato)
+  if (!paquete) return { fichas, id: "", aviso: "El enlace de WhatsApp no se pudo leer." }
+  const entrante = fichaDesdePaquete(paquete)
+  const local = fichas.find((ficha) => ficha.id === entrante.id)
+  const fusion = fusionarFicha(local, entrante)
+  const siguientes = local
+    ? fichas.map((ficha) => (ficha.id === fusion.ficha.id ? fusion.ficha : ficha))
+    : [fusion.ficha, ...fichas]
+  return {
+    fichas: siguientes,
+    id: fusion.ficha.id,
+    aviso: fusion.nueva ? `Ficha importada: ${fusion.ficha.titulo}` : `Ficha actualizada: ${fusion.ficha.titulo}`,
   }
-  if (datos.hueco && typeof datos.hueco === "object") {
-    const hueco = datos.hueco as Hueco
-    const existe = siguiente.calendario.some((item) => item.id === hueco.id)
-    siguiente.calendario = (existe
-      ? siguiente.calendario.map((item) => (item.id === hueco.id ? hueco : item))
-      : [...siguiente.calendario, hueco]
-    ).sort((a, b) => a.fecha.localeCompare(b.fecha))
-  }
-  if (datos.metrica && typeof datos.metrica === "object") {
-    const metrica = datos.metrica as MetricaMes
-    const existe = siguiente.metricas.some((item) => item.mes === metrica.mes)
-    siguiente.metricas = existe
-      ? siguiente.metricas.map((item) => (item.mes === metrica.mes ? metrica : item))
-      : [...siguiente.metricas, metrica]
-  }
-  return siguiente
 }
 
 export function useApp() {

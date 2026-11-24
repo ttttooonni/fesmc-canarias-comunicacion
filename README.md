@@ -1,108 +1,62 @@
 # Comunicación digital UGT FeSMC Canarias
 
-Herramienta de trabajo del equipo de comunicación digital de la federación. Sirve para ejecutar el ritmo del plan: la ficha breve que envían islas y sectores, el circuito de publicación, el calendario editorial y el panel mensual de métricas.
+Redacción del equipo, en el teléfono. No hay servidor ni base de datos: las fichas viven en el dispositivo y el circuito se mueve por WhatsApp. La guía y el checklist siguen disponibles sin cobertura.
 
-La interfaz está en español de España. Los nombres, hechos y cifras que trae de serie son de demostración: no hay datos personales reales ni estadísticas de las cuentas oficiales.
+## Publicar en GitHub Pages
 
-## Qué se puede hacer
+El repositorio debe llamarse `fesmc-canarias-comunicacion`. El flujo de `.github/workflows/pages.yml` publica la rama `main`.
 
-- Enviar la ficha breve: qué ocurrió, isla, cuándo, sector, fuentes, material autorizado, contacto del equipo y marca de contenido sensible.
-- Mover cada pieza por el circuito: recibido, comprobado, redacción, revisión jurídica e imagen, autorización de supervisión si es sensible, programado, publicado y difundido a las cuentas insulares.
-- Entrar con el rol que toca: coordinación y supervisión, compañero gestor, responsable insular, responsable sectorial o referente jurídico.
-- Ver el calendario. Diciembre de 2026 llega precargado como ejemplo del primer mes, con el ritmo del plan: lunes de derechos, miércoles de actividad, viernes de actualidad y participación. Incluye la sección «Sindi y Cato te lo cuentan».
-- Consultar el registro de lo recibido, publicado y compartido, por isla y por sector, sin rankings.
-- Volcar a mano las métricas mensuales de Instagram, Facebook y TikTok, y ver el aviso de islas o sectores sin presencia.
-- Leer sin conexión la guía de tono y el checklist de seguridad y datos.
-- Copiar o compartir el texto sugerido para las cuentas insulares.
+1. Sube esta rama a `main` del repositorio.
+2. En GitHub: Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+3. El flujo ejecuta `npm run build` con `NEXT_PUBLIC_BASE_PATH=/fesmc-canarias-comunicacion` y publica la carpeta `out`.
+4. La dirección queda en `https://<usuario>.github.io/fesmc-canarias-comunicacion/`.
 
-## Requisitos
+## Publicar en Vercel, solo archivos estáticos
 
-- Node.js 22 o superior
-- npm
+1. Importa el repositorio. El marco es Next.js.
+2. No hace falta ninguna variable de entorno. Si la dejas vacía, la aplicación se sirve en la raíz del dominio.
+3. El comando de build es `npm run build`. Vercel publica el resultado estático. No hay funciones de servidor.
 
-## Ejecutar en local
+## Probarla en local
 
 ```bash
 npm install
-npm run dev
-```
-
-Abre [http://127.0.0.1:4179](http://127.0.0.1:4179).
-
-Para la versión que se puede instalar y funciona offline, usa la compilación de producción:
-
-```bash
 npm run build
-npm start
+npx serve out -l 4179
 ```
 
-La misma dirección sirve la aplicación. En el móvil o en el escritorio, el navegador ofrecerá instalarla (Chrome, Edge o Safari: Compartir y «Añadir a pantalla de inicio»). Fuera de localhost hace falta HTTPS.
+También vale `npm run dev` en [http://127.0.0.1:4179](http://127.0.0.1:4179).
 
-## Cuentas de demostración
+## Instalarla en el móvil
 
-La clave de todas es `canarias-demo`.
+Ábrela por HTTPS (o en localhost). En la portada está **Instalar / Descargar app**.
 
-| Correo | Rol |
-| --- | --- |
-| coordinacion@demo.ugt-fesmc.local | Coordinación y supervisión |
-| gestion@demo.ugt-fesmc.local | Compañero gestor |
-| lanzarote@demo.ugt-fesmc.local | Responsable insular de Lanzarote |
-| tenerife@demo.ugt-fesmc.local | Responsable insular de Tenerife |
-| grancanaria@demo.ugt-fesmc.local | Responsable insular de Gran Canaria |
-| hosteleria@demo.ugt-fesmc.local | Responsable sectorial de hostelería y turismo |
-| juridico@demo.ugt-fesmc.local | Referente jurídico |
+- Android y Chrome: un toque en «Instalar ahora» cuando el navegador lo permite.
+- iPhone: Compartir, «Añadir a pantalla de inicio», Añadir.
 
-En la pantalla de entrada se pueden rellenar con un toque. No uses estas cuentas para información real.
+Cuando ya está instalada, ese bloque desaparece.
 
-## Datos y offline
+## Cómo circula una ficha
 
-El servidor guarda el trabajo del equipo en `data/store.json`. Ese archivo se crea al arrancar, no se versiona y se puede borrar para volver a la semilla de ejemplo.
+1. Quien la vive escribe la ficha breve y pulsa **Enviar propuesta**. Se abre WhatsApp con el resumen, el estado y un enlace.
+2. Quien recibe abre el enlace en el mismo móvil. La ficha entra en su aplicación.
+3. Siguen igual: pedir revisión, revisión legal, aprobar o devolver con cambios, y marcar publicada. Cada paso vuelve a abrir WhatsApp.
 
-El navegador guarda una copia en IndexedDB. Si se corta la red:
+El enlace tiene esta forma: `#/importar?d=...`. Los datos van en el fragmento del mensaje. No hay un servidor que los reciba.
 
-- la guía y el checklist siguen disponibles;
-- se puede seguir consultando la última copia de fichas, calendario y métricas;
-- los cambios se encolan en el dispositivo y se envían al recuperar la conexión.
+El tutorial de la primera apertura, y Más → Cómo funciona, lo cuenta con calma. También está en `TUTORIAL.md`.
 
-La primera entrada en un dispositivo nuevo necesita red, porque la sesión vive en una cookie.
+## Copias y ejemplo
 
-## Cómo conectar otro backend
+En Inicio: **Cargar ejemplo** mete fichas y el calendario de diciembre de 2026, marcados como ejemplo. **Descargar copia** e **Importar copia** mueven un JSON entre teléfonos.
 
-La lógica de negocio no depende del archivo JSON. Está en `src/lib` (`fichas.ts`, `circuito.ts`, `calendario-logica.ts`, `metricas-logica.ts`) y la usan tanto el cliente como las rutas.
-
-Hoy las rutas de `src/app/api` leen y escriben con `src/server/store.ts`. Para compartir los datos en un servidor de verdad:
-
-1. Sustituye `leer` y `guardar` por Postgres, SQLite u otro almacén.
-2. Mantén las mismas respuestas JSON: `usuario`, `fichas`, `calendario`, `metricas`, y los objetos `ficha`, `hueco` y `metrica`.
-3. Conserva la cookie `ugt_com_sesion` o cambia `src/server/sesion.ts` y el cliente en `src/components/proveedor.tsx`, que es la única capa que llama a `/api`.
-4. No guardes datos personales reales en la semilla. Las cuentas de ejemplo tienen que desaparecer antes de un uso interno de verdad, y las contraseñas tienen que salir de un gestor, no del código.
-
-Variable opcional: `DATA_FILE` apunta a otra ruta del JSON mientras sigas con el almacén de archivo.
-
-## Desplegar
-
-Hace falta un proceso Node persistente y un volumen para `data/store.json`. Un ejemplo:
-
-```bash
-npm ci
-npm run build
-npm start
-```
-
-Pon la aplicación detrás de HTTPS (Caddy, nginx o el proxy de la plataforma). Sin HTTPS el navegador no la instala, salvo en localhost.
-
-La cookie de sesión se marca `Secure` solo si la petición llega como HTTPS o con `X-Forwarded-Proto: https`.
-
-No está pensada para un entorno serverless en el que el disco se borra en cada invocación. Si el destino es de ese tipo, cambia el almacén antes de desplegar.
+No hay contraseñas.
 
 ## Comprobaciones
 
 ```bash
 npm test
 npm run lint
+npx tsc --noEmit
 npm run build
 ```
-
-## Identidad
-
-Rojo `#E30613`, blanco y gris oscuro `#1C1C1C`. La marca de la aplicación es una pieza tipográfica propia para esta herramienta, no el logotipo oficial.

@@ -15,7 +15,7 @@ export function Circuito() {
       <header>
         <h1 className="font-heading text-3xl font-semibold tracking-tight">Circuito</h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Recibido, comprobado, redacción, revisión jurídica e imagen, autorización de supervisión si es sensible, programado, publicado y difundido a las cuentas insulares.
+          Borrador, propuesta, revisión, revisión legal, aprobada o devuelta, y publicada. Cada paso se puede mandar por WhatsApp.
         </p>
       </header>
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="tablist" aria-label="Filtrar por estado">

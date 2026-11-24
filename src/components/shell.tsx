@@ -1,9 +1,11 @@
 "use client"
 
 import { Instalar } from "@/components/instalar"
-import { Login } from "@/components/login"
+import { Perfil } from "@/components/perfil"
 import { Marca } from "@/components/marca"
 import { useApp } from "@/components/proveedor"
+import { Tema } from "@/components/tema"
+import { Tutorial } from "@/components/tutorial"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { nombreRol } from "@/lib/dominio"
@@ -42,18 +44,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   if (!app.listo) {
     return (
-      <div className="grid min-h-dvh place-items-center px-6">
-        <div className="text-center">
-          <Marca className="justify-center" />
-          <p className="mt-4 text-sm text-muted-foreground" role="status">
-            Abriendo la redacción…
-          </p>
+      <div className="grid min-h-dvh place-items-center bg-[#1C1C1C] px-6 text-white">
+        <div className="aparecer text-center">
+          <span className="mx-auto grid size-16 place-items-center rounded-2xl bg-primary font-heading text-lg font-bold" aria-hidden>UGT</span>
+          <p className="mt-6 font-heading text-2xl font-semibold">FeSMC Canarias</p>
+          <p className="mt-2 text-sm text-white/70" role="status">Abriendo la redacción…</p>
         </div>
       </div>
     )
   }
 
-  if (!app.usuario && !publica) return <Login />
+  if (!app.usuario && !publica) return <><Perfil /><Tutorial /></>
 
   if (!app.usuario && publica) {
     return (
@@ -70,7 +71,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             className="h-11 px-4"
             onClick={() => router.push("/")}
           >
-            Entrar
+            Elegir perfil
           </Button>
         </header>
         <div className="mx-auto w-full max-w-3xl px-4 py-6">{children}</div>
@@ -116,13 +117,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="border-t border-white/10 p-4">
           <p className="text-sm font-semibold">{usuario.nombre}</p>
-          <p className="text-xs text-white/70">{nombreRol(usuario.rol)} · cuenta de ejemplo</p>
+          <p className="text-xs text-white/70">{nombreRol(usuario.rol)} · en este dispositivo</p>
+          <Button type="button" variant="outline" className="mt-3 h-11 w-full border-white/20 bg-transparent px-4 text-white hover:bg-white/10 hover:text-white" onClick={() => app.abrirTutorial()}>
+            Cómo funciona
+          </Button>
           <Button
             variant="outline"
-            className="mt-3 h-11 w-full border-white/20 bg-transparent px-4 text-white hover:bg-white/10 hover:text-white"
-            onClick={() => void app.salir()}
+            className="mt-2 h-11 w-full border-white/20 bg-transparent px-4 text-white hover:bg-white/10 hover:text-white"
+            onClick={() => app.salir()}
           >
-            Cerrar sesión
+            Cambiar perfil
           </Button>
         </div>
       </aside>
@@ -131,10 +135,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <Link href="/" aria-label="Inicio">
             <Marca />
           </Link>
-          <p className="truncate text-right text-xs text-muted-foreground">
-            <span className="block font-medium text-foreground">{usuario.nombre.split(" ")[0]}</span>
-            {nombreRol(usuario.rol)}
-          </p>
+          <div className="flex items-center gap-2">
+            <Tema />
+            <p className="truncate text-right text-xs text-muted-foreground">
+              <span className="block font-medium text-foreground">{usuario.nombre.split(" ")[0]}</span>
+              {nombreRol(usuario.rol)}
+            </p>
+          </div>
         </header>
         {app.offline || app.aviso || app.pendientes > 0 ? (
           <div className="border-b border-[#E7C7A1] bg-[#FFF6E8] px-4 py-2 text-sm text-[#1C1C1C]" role="status">
@@ -198,17 +205,21 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 {item.etiqueta}
               </Link>
             ))}
-            <div className="mt-2 rounded-xl bg-[#F3EFEA] p-3">
+            <div className="mt-2 rounded-xl bg-[#F3EFEA] p-3 dark:bg-[#242424]">
               <p className="text-sm font-semibold">{usuario.nombre}</p>
-              <p className="text-sm text-muted-foreground">{nombreRol(usuario.rol)}. Cuenta de ejemplo.</p>
+              <p className="text-sm text-muted-foreground">{nombreRol(usuario.rol)}. En este dispositivo.</p>
             </div>
             <Instalar />
-            <Button variant="outline" className="h-11" onClick={() => void app.salir()}>
-              Cerrar sesión
+            <Button type="button" variant="outline" className="h-11" onClick={() => { setMas(false); app.abrirTutorial() }}>
+              Cómo funciona
+            </Button>
+            <Button variant="outline" className="h-11" onClick={() => app.salir()}>
+              Cambiar perfil
             </Button>
           </div>
         </SheetContent>
       </Sheet>
+      <Tutorial />
     </div>
   )
 }

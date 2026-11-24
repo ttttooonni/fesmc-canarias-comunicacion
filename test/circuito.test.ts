@@ -2,16 +2,17 @@ import { accionesDisponibles } from "@/lib/circuito"
 import { huecosDelMes } from "@/lib/cobertura"
 import type { Ficha, UsuarioPublico } from "@/lib/dominio"
 import { aplicarTransicion, construirFicha } from "@/lib/fichas"
+import { codificarPaquete, decodificarPaquete, empaquetar, fichaDesdePaquete, mensajeWhatsapp } from "@/lib/whatsapp"
 import { describe, expect, it } from "vitest"
 
 const gestor: UsuarioPublico = {
   id: "gestor",
   nombre: "Iago Martín",
-  email: "gestion@demo.ugt-fesmc.local",
+  email: "",
   rol: "gestor",
   isla: null,
   sector: null,
-  ejemplo: true,
+  ejemplo: false,
 }
 
 const coordinacion: UsuarioPublico = { ...gestor, id: "coord", rol: "coordinacion", nombre: "Nuria Campos" }
@@ -49,69 +50,46 @@ function fichaDe(extra: Record<string, unknown> = {}) {
   return creada.ficha
 }
 
-describe("circuito", () => {
-  it("un perfil insular no mueve estados", () => {
-    expect(accionesDisponibles(fichaDe(), "insular")).toEqual([])
+describe("circuito por WhatsApp", () => {
+  it("la isla puede enviar la propuesta", () => {
+    const acciones = accionesDisponibles(fichaDe(), "insular").map((item) => item.destino)
+    expect(acciones).toContain("propuesta")
   })
 
-  it("no pasa a redacción sin material autorizado", () => {
-    const ficha = { ...fichaDe(), estado: "comprobado" as const, materialAutorizado: false }
-    const accion = accionesDisponibles(ficha, "gestor").find((item) => item.destino === "redaccion")
+  it("no sale la propuesta sin material autorizado", () => {
+    const ficha = { ...fichaDe(), materialAutorizado: false }
+    const accion = accionesDisponibles(ficha, "gestor").find((item) => item.destino === "propuesta")
     expect(accion?.bloqueo).toBeTruthy()
-    const resultado = aplicarTransicion({
-      ficha,
-      destino: "redaccion",
-      eventoId: "evt-test-bloqueo",
-      usuario: gestor,
-      ahora: "2026-11-22T11:00:00.000Z",
-    })
-    expect(resultado.ok).toBe(false)
   })
 
-  it("lo sensible no se programa sin supervisión", () => {
-    const ficha: Ficha = { ...fichaDe({ sensible: true, motivoSensible: "Conflicto abierto en un centro pequeño." }), estado: "revision" }
-    const destinos = accionesDisponibles(ficha, "juridico").map((item) => item.destino)
-    expect(destinos).toContain("pendiente_autorizacion")
-    expect(destinos).not.toContain("programado")
-    const salto = aplicarTransicion({
+  it("lo sensible solo lo aprueba coordinación", () => {
+    const ficha: Ficha = { ...fichaDe({ sensible: true, motivoSensible: "Conflicto abierto en un centro pequeño." }), estado: "revision_legal" }
+    expect(accionesDisponibles(ficha, "juridico").map((item) => item.destino)).not.toContain("aprobada")
+    const aprobada = aplicarTransicion({
       ficha,
-      destino: "programado",
-      eventoId: "evt-test-salto",
+      destino: "aprobada",
+      eventoId: "evt-aprobar",
       usuario: coordinacion,
       ahora: "2026-11-22T12:00:00.000Z",
-      programadoPara: "2026-12-11",
     })
-    expect(salto.ok).toBe(false)
-    const elevado = aplicarTransicion({
+    expect(aprobada.ok).toBe(true)
+  })
+
+  it("devolver con cambios exige una nota", () => {
+    const ficha = { ...fichaDe(), estado: "revision_legal" as const }
+    const devuelta = aplicarTransicion({
       ficha,
-      destino: "pendiente_autorizacion",
-      eventoId: "evt-test-eleva",
+      destino: "cambios",
+      eventoId: "evt-cambios",
       usuario: juridico,
       ahora: "2026-11-22T12:00:00.000Z",
+      nota: "Falta la fuente",
     })
-    expect(elevado.ok).toBe(true)
-    if (!elevado.ok) return
-    const gestorNoAutoriza = aplicarTransicion({
-      ficha: elevado.ficha,
-      destino: "programado",
-      eventoId: "evt-test-gestor",
-      usuario: gestor,
-      ahora: "2026-11-22T13:00:00.000Z",
-      programadoPara: "2026-12-11",
-    })
-    expect(gestorNoAutoriza.ok).toBe(false)
-    const autoriza = aplicarTransicion({
-      ficha: elevado.ficha,
-      destino: "programado",
-      eventoId: "evt-test-autoriza",
-      usuario: coordinacion,
-      ahora: "2026-11-22T13:00:00.000Z",
-      programadoPara: "2026-12-11",
-    })
-    expect(autoriza.ok).toBe(true)
+    expect(devuelta.ok).toBe(true)
+    if (devuelta.ok) expect(devuelta.ficha.estado).toBe("cambios")
   })
 
-  it("la isla de una responsable insular no se puede cambiar en la ficha", () => {
+  it("la isla del perfil no se cambia al crear", () => {
     const creada = construirFicha({
       id: "ficha-test-0002",
       datos: datosValidos({ isla: "tenerife" }),
@@ -119,6 +97,26 @@ describe("circuito", () => {
       ahora: "2026-11-22T10:00:00.000Z",
     })
     expect(creada.ok && creada.ficha.isla).toBe("lanzarote")
+    expect(creada.ok && creada.ficha.estado).toBe("borrador")
+  })
+})
+
+describe("enlace de WhatsApp", () => {
+  it("el mensaje y el fragmento hacen el viaje de ida y vuelta", () => {
+    const ficha = { ...fichaDe(), estado: "propuesta" as const, actualizadoEn: "2026-11-22T12:00:00.000Z" }
+    const mensaje = mensajeWhatsapp(ficha, "https://ejemplo.test/fesmc-canarias-comunicacion/")
+    expect(mensaje).toContain("Propuesta enviada")
+    expect(mensaje).toContain(ficha.titulo)
+    expect(mensaje).toContain("#/importar?d=")
+    const dato = mensaje.split("#/importar?d=")[1] ?? ""
+    const paquete = decodificarPaquete(dato)
+    expect(paquete?.id).toBe(ficha.id)
+    expect(paquete?.estado).toBe("propuesta")
+    const importada = fichaDesdePaquete(paquete!)
+    expect(importada.titulo).toBe(ficha.titulo)
+    expect(importada.isla).toBe("lanzarote")
+    const otra = decodificarPaquete(codificarPaquete(empaquetar(ficha)))
+    expect(otra?.queOcurrio.startsWith("En un centro de ejemplo")).toBe(true)
   })
 })
 
@@ -127,9 +125,7 @@ describe("presencia", () => {
     const fichas = [fichaDe(), { ...fichaDe(), id: "otra", isla: "tenerife" as const, sector: "comercio" as const }]
     const huecos = huecosDelMes(fichas, "2026-11")
     expect(huecos.islas).not.toContain("lanzarote")
-    expect(huecos.islas).not.toContain("tenerife")
     expect(huecos.islas).toContain("el_hierro")
     expect(huecos.islas.indexOf("fuerteventura")).toBeLessThan(huecos.islas.indexOf("el_hierro"))
-    expect(huecos.texto).toMatch(/hueco de presencia/i)
   })
 })

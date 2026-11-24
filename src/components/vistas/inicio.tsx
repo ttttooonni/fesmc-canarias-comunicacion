@@ -1,6 +1,7 @@
 "use client"
 
 import { AvisoHuecos } from "@/components/aviso-huecos"
+import { PanelInstalar } from "@/components/instalar"
 import { useApp } from "@/components/proveedor"
 import { TarjetaFicha } from "@/components/tarjeta-ficha"
 import { accionesDisponibles, puedeRegistrarCompartido } from "@/lib/circuito"
@@ -33,7 +34,7 @@ function suscribirNada() {
 }
 
 export function Inicio() {
-  const { usuario, fichas, calendario } = useApp()
+  const { usuario, fichas, calendario, cargarEjemplo, exportarCopia, importarCopia } = useApp()
   const saludo = useSyncExternalStore(suscribirNada, saludoDeAhora, () => "Hola")
   const hoy = useSyncExternalStore(suscribirNada, () => new Date().toISOString().slice(0, 10), () => "2026-11-22")
   if (!usuario) return null
@@ -42,7 +43,7 @@ export function Inicio() {
     usuario.rol === "insular" && usuario.isla
       ? fichas.filter(
           (ficha) =>
-            (ficha.estado === "publicado" || ficha.estado === "difundido") &&
+            ficha.estado === "publicada" &&
             !ficha.compartidos.some((item) => item.isla === usuario.isla),
         )
       : []
@@ -50,14 +51,14 @@ export function Inicio() {
   const mes = mesVisiblePorDefecto()
   const veMapa = usuario.rol === "coordinacion" || usuario.rol === "gestor" || usuario.rol === "juridico"
   const delMes = fichas.filter((ficha) => mesDe(ficha.creadoEn) === mes)
-  const publicadas = fichas.filter((ficha) => ficha.estado === "publicado" || ficha.estado === "difundido").length
+  const publicadas = fichas.filter((ficha) => ficha.estado === "publicada").length
 
   let tarea = "Revisa la mesa y el calendario de diciembre."
   if (usuario.rol === "coordinacion") {
-    const sensibles = fichas.filter((ficha) => ficha.estado === "pendiente_autorizacion").length
+    const sensibles = fichas.filter((ficha) => ficha.sensible && ficha.estado === "revision_legal").length
     tarea = sensibles
-      ? `Hay ${sensibles} ${sensibles === 1 ? "pieza sensible esperando" : "piezas sensibles esperando"} tu autorización.`
-      : "No hay piezas sensibles paradas en supervisión."
+      ? `Hay ${sensibles} ${sensibles === 1 ? "pieza sensible en revisión legal" : "piezas sensibles en revisión legal"}.`
+      : "No hay piezas sensibles paradas en revisión legal."
   } else if (usuario.rol === "gestor") {
     tarea = cola.length
       ? `Tienes ${cola.length} ${cola.length === 1 ? "pieza en la mesa" : "piezas en la mesa"}.`
@@ -75,7 +76,8 @@ export function Inicio() {
   }
 
   return (
-    <main id="contenido" className="space-y-8">
+    <main id="contenido" className="aparecer space-y-8">
+      <PanelInstalar />
       <header>
         <p className="text-sm font-medium text-primary">{nombreRol(usuario.rol)}</p>
         <h1 className="mt-1 font-heading text-3xl font-semibold tracking-tight">
@@ -144,6 +146,33 @@ export function Inicio() {
           )}
         </ul>
         <p className="mt-3 text-xs text-muted-foreground">Lectura de {etiquetaMes(mes)}. Las islas no se ordenan por volumen.</p>
+      </section>
+      <section className="grid gap-3 sm:grid-cols-3">
+        <button type="button" className="rounded-2xl bg-card p-4 text-left ring-1 ring-foreground/10" onClick={() => cargarEjemplo()}>
+          <span className="block font-heading text-lg font-semibold">Cargar ejemplo</span>
+          <span className="mt-1 block text-sm text-muted-foreground">Fichas y calendario ficticios, marcados como ejemplo.</span>
+        </button>
+        <button type="button" className="rounded-2xl bg-card p-4 text-left ring-1 ring-foreground/10" onClick={() => exportarCopia()}>
+          <span className="block font-heading text-lg font-semibold">Descargar copia</span>
+          <span className="mt-1 block text-sm text-muted-foreground">Un JSON con la mesa de este dispositivo.</span>
+        </button>
+        <label className="cursor-pointer rounded-2xl bg-card p-4 text-left ring-1 ring-foreground/10">
+          <span className="block font-heading text-lg font-semibold">Importar copia</span>
+          <span className="mt-1 block text-sm text-muted-foreground">Recupera un JSON guardado antes.</span>
+          <input
+            type="file"
+            accept="application/json"
+            className="sr-only"
+            onChange={(evento) => {
+              const archivo = evento.target.files?.[0]
+              if (!archivo) return
+              void archivo.text().then((texto) => {
+                const resultado = importarCopia(texto)
+                if (!resultado.ok) window.alert(resultado.error)
+              })
+            }}
+          />
+        </label>
       </section>
     </main>
   )

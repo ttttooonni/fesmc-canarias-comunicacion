@@ -166,7 +166,7 @@ export function Calendario() {
                 <p>{abierto.angulo}</p>
                 <p>Canales: {abierto.canales.map(nombreCanal).join(", ")}</p>
                 {abierto.fichaId ? (
-                  <Link href={`/fichas/${abierto.fichaId}`} className="inline-flex font-medium text-primary underline-offset-4 hover:underline">
+                  <Link href={`/fichas/ver?id=${abierto.fichaId}`} className="inline-flex font-medium text-primary underline-offset-4 hover:underline">
                     Abrir la ficha vinculada
                   </Link>
                 ) : (

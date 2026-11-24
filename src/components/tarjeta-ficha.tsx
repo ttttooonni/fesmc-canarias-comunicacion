@@ -1,11 +1,12 @@
 import { EstadoPill } from "@/components/estado-pill"
 import { formatoCorto, nombreIsla, nombreSector, type Ficha } from "@/lib/dominio"
+import { hrefFicha } from "@/lib/rutas"
 import Link from "next/link"
 
 export function TarjetaFicha({ ficha }: { ficha: Ficha }) {
   return (
     <Link
-      href={`/fichas/${ficha.id}`}
+      href={hrefFicha(ficha.id)}
       className="block rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition hover:ring-primary/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
       <span className="flex flex-wrap items-center gap-2">

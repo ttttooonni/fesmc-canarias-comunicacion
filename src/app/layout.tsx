@@ -5,6 +5,7 @@ import { Proveedor } from "@/components/proveedor"
 import { RegistroSw } from "@/components/registro-sw"
 import { Shell } from "@/components/shell"
 import { Toaster } from "@/components/ui/sonner"
+import { ThemeProvider } from "next-themes"
 import "./globals.css"
 
 const source = Source_Sans_3({
@@ -25,6 +26,7 @@ export const metadata: Metadata = {
   description:
     "Herramienta del equipo de comunicación digital de UGT FeSMC Canarias: ficha breve, circuito de publicación, calendario editorial y métricas.",
   applicationName: "UGT Com",
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     title: "UGT Com",
@@ -49,15 +51,17 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${source.variable} ${outfit.variable} h-full antialiased`}>
+    <html lang="es" suppressHydrationWarning className={`${source.variable} ${outfit.variable} h-full antialiased`}>
       <body className="min-h-full bg-background text-foreground">
-        <Proveedor>
-          <Suspense fallback={<div className="grid min-h-dvh place-items-center px-6 text-sm text-[#3a3a3a]">Abriendo la redacción…</div>}>
-            <Shell>{children}</Shell>
-          </Suspense>
-        </Proveedor>
-        <RegistroSw />
-        <Toaster theme="light" position="top-center" />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <Proveedor>
+            <Suspense fallback={<div className="grid min-h-dvh place-items-center bg-[#1C1C1C] px-6 text-sm text-white">Abriendo la redacción…</div>}>
+              <Shell>{children}</Shell>
+            </Suspense>
+          </Proveedor>
+          <RegistroSw />
+          <Toaster position="top-center" />
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -47,14 +47,13 @@ export const CANALES = [
 ] as const
 
 export const ESTADOS = [
-  { id: "recibido", nombre: "Recibido", detalle: "La ficha acaba de entrar." },
-  { id: "comprobado", nombre: "Comprobado", detalle: "Están la isla, el sector, la fuente y el material." },
-  { id: "redaccion", nombre: "Redacción", detalle: "Se escribe la pieza para las redes." },
-  { id: "revision", nombre: "Revisión jurídica e imagen", detalle: "La mira el referente jurídico y la imagen." },
-  { id: "pendiente_autorizacion", nombre: "Pendiente de autorización", detalle: "Es sensible: espera el visto bueno de supervisión." },
-  { id: "programado", nombre: "Programado", detalle: "Tiene fecha en el calendario." },
-  { id: "publicado", nombre: "Publicado", detalle: "Ya está en las cuentas de la federación." },
-  { id: "difundido", nombre: "Difundido a cuentas insulares", detalle: "Se envió el texto para que las islas lo compartan." },
+  { id: "borrador", nombre: "Borrador", detalle: "Está en este dispositivo. Todavía no se ha enviado." },
+  { id: "propuesta", nombre: "Propuesta enviada", detalle: "Se compartió por WhatsApp para que el equipo la vea." },
+  { id: "en_revision", nombre: "En revisión", detalle: "Se pidió revisión de redacción e imagen." },
+  { id: "revision_legal", nombre: "Revisión legal", detalle: "La está mirando el referente jurídico." },
+  { id: "aprobada", nombre: "Aprobada", detalle: "Ya se puede publicar." },
+  { id: "cambios", nombre: "Devuelta con cambios", detalle: "Hay que corregirla y volver a enviarla." },
+  { id: "publicada", nombre: "Publicada", detalle: "Ya está en las cuentas de la federación." },
 ] as const
 
 export const ROLES = [

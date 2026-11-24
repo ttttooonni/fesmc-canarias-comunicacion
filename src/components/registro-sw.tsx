@@ -2,17 +2,18 @@
 
 import { useEffect } from "react"
 
-const CACHE = "ugt-com-v3"
+const CACHE = "ugt-com-v5"
+const base = process.env.NEXT_PUBLIC_BASE_PATH || ""
 const PRECACHE = [
-  "/",
-  "/guia",
-  "/guia/seguridad",
-  "/offline.html",
-  "/manifest.webmanifest",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/icon-maskable-512.png",
-  "/icons/apple-touch-icon.png",
+  `${base}/`,
+  `${base}/guia/`,
+  `${base}/guia/seguridad/`,
+  `${base}/offline.html`,
+  `${base}/manifest.webmanifest`,
+  `${base}/icons/icon-192.png`,
+  `${base}/icons/icon-512.png`,
+  `${base}/icons/icon-maskable-512.png`,
+  `${base}/icons/apple-touch-icon.png`,
 ]
 
 export function RegistroSw() {
@@ -22,7 +23,7 @@ export function RegistroSw() {
     let cancelado = false
     async function activar() {
       try {
-        await navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" })
+        await navigator.serviceWorker.register(`${base}/sw.js`, { scope: `${base}/`, updateViaCache: "none" })
         const cache = await caches.open(CACHE)
         if (cancelado) return
         await Promise.all(

@@ -36,19 +36,19 @@ export function construirFicha(input: {
   const ficha: Ficha = {
     id: input.id,
     ...datos,
-    estado: "recibido",
+    estado: "borrador",
     creadoPorId: input.usuario.id,
     creadoPorNombre: input.usuario.nombre,
     creadoEn: input.ahora,
     actualizadoEn: input.ahora,
     historial: [
       {
-        id: `${input.id}-recibido`,
-        estado: "recibido",
+        id: `${input.id}-borrador`,
+        estado: "borrador",
         porId: input.usuario.id,
         porNombre: input.usuario.nombre,
         en: input.ahora,
-        nota: "Ficha enviada.",
+        nota: "Borrador en este dispositivo.",
       },
     ],
     textoPublicacion: "",
@@ -72,8 +72,8 @@ export function actualizarDatos(input: {
   ahora: string
   eventoId: string
 }): { ok: true; ficha: Ficha } | { ok: false; error: string; errores?: Record<string, string> } {
-  if (input.ficha.estado !== "recibido" && input.ficha.estado !== "comprobado") {
-    return { ok: false, error: "Los datos solo se corrigen mientras la ficha está recibida o comprobada." }
+  if (input.ficha.estado !== "borrador" && input.ficha.estado !== "cambios") {
+    return { ok: false, error: "Los datos se corrigen en el borrador o cuando te la devuelven con cambios." }
   }
   const puede =
     input.usuario.rol === "gestor" ||
@@ -181,8 +181,8 @@ export function aplicarTransicion(input: {
     actualizadoEn: input.ahora,
     programadoPara,
     checklist,
-    publicadoEn: input.destino === "publicado" ? input.ahora : input.ficha.publicadoEn,
-    difundidoEn: input.destino === "difundido" ? input.ahora : input.ficha.difundidoEn,
+    publicadoEn: input.destino === "publicada" ? input.ahora : input.ficha.publicadoEn,
+    difundidoEn: input.ficha.difundidoEn,
     historial: [
       ...input.ficha.historial,
       {
@@ -195,7 +195,7 @@ export function aplicarTransicion(input: {
       },
     ],
   }
-  if (input.destino === "publicado") {
+  if (input.destino === "publicada") {
     if (!siguiente.textoPublicacion.trim()) siguiente.textoPublicacion = borradorPublicacion(siguiente)
     if (!siguiente.textoCompartir.trim()) {
       siguiente.textoCompartir = textoParaCuentaInsular(siguiente, siguiente.isla)
@@ -211,7 +211,7 @@ export function registrarCompartido(input: {
   usuario: UsuarioPublico
   ahora: string
 }): { ok: true; ficha: Ficha } | { ok: false; error: string } {
-  if (input.ficha.estado !== "publicado" && input.ficha.estado !== "difundido") {
+  if (input.ficha.estado !== "publicada") {
     return { ok: false, error: "Solo se registra el compartido cuando la pieza ya está publicada." }
   }
   if (input.usuario.rol !== "insular" && input.usuario.rol !== "gestor" && input.usuario.rol !== "coordinacion") {
@@ -259,8 +259,8 @@ export function aclararFicha(input: {
   if (input.ficha.historial.some((paso) => paso.id === input.eventoId)) {
     return { ok: true, ficha: input.ficha }
   }
-  if (input.ficha.estado !== "recibido" && input.ficha.estado !== "comprobado") {
-    return { ok: false, error: "La aclaración se añade al principio del circuito." }
+  if (input.ficha.estado !== "borrador" && input.ficha.estado !== "cambios") {
+    return { ok: false, error: "La aclaración se añade en el borrador o cuando hay cambios pedidos." }
   }
   const puede =
     input.usuario.rol === "gestor" ||

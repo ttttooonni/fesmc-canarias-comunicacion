@@ -23,14 +23,15 @@ import {
   nombreSector,
   type IslaId,
 } from "@/lib/dominio"
-import { useParams } from "next/navigation"
+import { abrirWhatsapp } from "@/lib/whatsapp"
+import { useSearchParams } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 
 export function FichaDetalle() {
-  const params = useParams<{ id: string }>()
+  const params = useSearchParams()
   const { usuario, fichas, cambiarFicha } = useApp()
-  const ficha = fichas.find((item) => item.id === params.id)
+  const ficha = fichas.find((item) => item.id === params.get("id"))
   const [editando, setEditando] = useState(false)
   const [accion, setAccion] = useState<AccionCircuito | null>(null)
   const [nota, setNota] = useState("")
@@ -56,8 +57,8 @@ export function FichaDetalle() {
   const acciones = accionesDisponibles(ficha, usuario.rol)
   const editaDatos = puedeEditarDatos(usuario.rol, ficha.creadoPorId, usuario.id, ficha.estado)
   const editaTextos = puedeEditarTextos(usuario.rol, ficha.estado)
-  const muestraCompartir = ficha.estado === "programado" || ficha.estado === "publicado" || ficha.estado === "difundido"
-  const puedeMarcar = puedeRegistrarCompartido(usuario.rol) && (ficha.estado === "publicado" || ficha.estado === "difundido")
+  const muestraCompartir = true
+  const puedeMarcar = puedeRegistrarCompartido(usuario.rol) && ficha.estado === "publicada"
   const hechos = new Set(ficha.historial.map((paso) => paso.estado))
 
   async function confirmar() {
@@ -76,6 +77,7 @@ export function FichaDetalle() {
       return
     }
     toast.success(accion.etiqueta)
+    if (resultado.ficha) abrirWhatsapp(resultado.ficha)
     setAccion(null)
     setNota("")
     setMarcas([])
@@ -159,7 +161,6 @@ export function FichaDetalle() {
 
       <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label="Circuito de la pieza">
         {ESTADOS.map((estado) => {
-          const noAplica = !ficha.sensible && estado.id === "pendiente_autorizacion" && ficha.estado !== "pendiente_autorizacion" && !hechos.has("pendiente_autorizacion")
           const actual = ficha.estado === estado.id
           const hecho = hechos.has(estado.id)
           return (
@@ -170,7 +171,7 @@ export function FichaDetalle() {
             >
               <span className="block font-semibold">{estado.nombre}</span>
               <span className={`mt-0.5 block text-xs ${actual ? "text-white/85" : "text-muted-foreground"}`}>
-                {noAplica ? "No aplica: no es sensible" : actual ? "Paso actual" : hecho ? "Hecho" : estado.detalle}
+                {actual ? "Paso actual" : hecho ? "Hecho" : estado.detalle}
               </span>
             </li>
           )
@@ -181,6 +182,9 @@ export function FichaDetalle() {
         <section className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
           <h2 className="font-heading text-lg font-semibold">Siguiente paso</h2>
           <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" variant="outline" className="h-11 px-4" onClick={() => abrirWhatsapp(ficha)}>
+              Compartir por WhatsApp
+            </Button>
             {acciones.map((item) => (
               <Button
                 key={item.destino + item.estilo}

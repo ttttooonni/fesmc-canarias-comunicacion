@@ -1,20 +1,12 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
+
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ""
 
 const nextConfig: NextConfig = {
-  cacheComponents: true,
-  partialPrefetching: true,
-  async headers() {
-    return [
-      {
-        source: "/sw.js",
-        headers: [
-          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
-          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
-          { key: "Service-Worker-Allowed", value: "/" },
-        ],
-      },
-    ]
-  },
+  output: "export",
+  trailingSlash: true,
+  images: { unoptimized: true },
+  ...(basePath ? { basePath } : {}),
   turbopack: {
     rules: {
       "*.css": {
@@ -23,6 +15,6 @@ const nextConfig: NextConfig = {
       },
     },
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig

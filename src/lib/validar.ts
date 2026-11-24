@@ -117,12 +117,7 @@ export function puedeVerFicha(usuario: UsuarioPublico, ficha: Ficha): boolean {
   if (usuario.rol === "coordinacion" || usuario.rol === "gestor" || usuario.rol === "juridico") {
     return true
   }
-  const publicada = ficha.estado === "publicado" || ficha.estado === "difundido"
-  if (usuario.rol === "insular") {
-    return publicada || ficha.isla === "regional" || ficha.isla === usuario.isla || ficha.creadoPorId === usuario.id
-  }
-  if (usuario.rol === "sectorial") {
-    return publicada || ficha.sector === usuario.sector || ficha.creadoPorId === usuario.id
-  }
-  return false
+  void usuario
+  void ficha
+  return true
 }

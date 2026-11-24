@@ -11,7 +11,8 @@ export type AccionCircuito = {
 }
 
 const MESA: RolId[] = ["gestor", "coordinacion"]
-const REVISION: RolId[] = ["juridico", "coordinacion"]
+const ENVIO: RolId[] = ["gestor", "coordinacion", "insular", "sectorial"]
+const LEGAL: RolId[] = ["juridico", "coordinacion"]
 
 function avanzar(
   destino: EstadoId,
@@ -48,63 +49,40 @@ export function accionesDisponibles(
   const acciones: AccionCircuito[] = []
 
   switch (ficha.estado) {
-    case "recibido":
-      if (puede(MESA)) acciones.push(avanzar("comprobado", "Marcar como comprobada"))
-      break
-    case "comprobado":
-      if (puede(MESA)) {
+    case "borrador":
+    case "cambios":
+      if (puede(ENVIO)) {
         acciones.push(
-          avanzar("redaccion", "Pasar a redacción", {
+          avanzar("propuesta", "Enviar propuesta", {
             bloqueo: ficha.materialAutorizado
               ? undefined
-              : "Antes hay que dejar constancia del material: fotos autorizadas o pieza sin imagen de personas.",
+              : "Antes confirma el material: fotos autorizadas o pieza sin imagen de personas.",
           }),
         )
-        acciones.push(devolver("recibido", "Pedir los datos que faltan"))
       }
       break
-    case "redaccion":
+    case "propuesta":
+      if (puede(MESA)) acciones.push(avanzar("en_revision", "Pedir revisión"))
+      if (puede(ENVIO)) acciones.push(devolver("cambios", "Devolver con cambios"))
+      break
+    case "en_revision":
+      if (puede(LEGAL)) acciones.push(avanzar("revision_legal", "Revisión legal"))
+      if (puede(MESA) || puede(LEGAL)) acciones.push(devolver("cambios", "Devolver con cambios"))
+      break
+    case "revision_legal":
+      if (ficha.sensible) {
+        if (rol === "coordinacion") acciones.push(avanzar("aprobada", "Aprobar"))
+      } else if (puede(LEGAL)) {
+        acciones.push(avanzar("aprobada", "Aprobar"))
+      }
+      if (puede(LEGAL)) acciones.push(devolver("cambios", "Devolver con cambios"))
+      break
+    case "aprobada":
       if (puede(MESA)) {
-        acciones.push(avanzar("revision", "Enviar a revisión jurídica e imagen"))
-        acciones.push(devolver("comprobado", "Devolver a comprobación"))
+        acciones.push(avanzar("publicada", "Marcar publicada", { exigeChecklist: true }))
       }
       break
-    case "revision":
-      if (puede(REVISION)) {
-        if (ficha.sensible) {
-          acciones.push(
-            avanzar("pendiente_autorizacion", "Elevar a supervisión"),
-          )
-        } else {
-          acciones.push(
-            avanzar("programado", "Dar paso y programar", { exigeFecha: true }),
-          )
-        }
-        acciones.push(devolver("redaccion", "Devolver a redacción"))
-      }
-      break
-    case "pendiente_autorizacion":
-      if (rol === "coordinacion") {
-        acciones.push(
-          avanzar("programado", "Autorizar y programar", { exigeFecha: true }),
-        )
-        acciones.push(devolver("redaccion", "No autorizar y devolver"))
-      }
-      break
-    case "programado":
-      if (puede(MESA)) {
-        acciones.push(
-          avanzar("publicado", "Marcar como publicada", { exigeChecklist: true }),
-        )
-        acciones.push(devolver("redaccion", "Sacar de programación"))
-      }
-      break
-    case "publicado":
-      if (puede(MESA)) {
-        acciones.push(avanzar("difundido", "Marcar difundida a las cuentas insulares"))
-      }
-      break
-    case "difundido":
+    case "publicada":
       break
   }
 
@@ -121,14 +99,14 @@ export function puedeEditarDatos(
   usuarioId: string,
   estado: EstadoId,
 ): boolean {
-  if (estado !== "recibido" && estado !== "comprobado") return false
+  if (estado !== "borrador" && estado !== "cambios") return false
   if (rol === "gestor" || rol === "coordinacion") return true
   return creadoPorId === usuarioId
 }
 
 export function puedeEditarTextos(rol: RolId, estado: EstadoId): boolean {
   if (rol !== "gestor" && rol !== "coordinacion") return false
-  return estado !== "recibido" && estado !== "comprobado"
+  return estado !== "borrador"
 }
 
 export function puedeEditarCalendario(rol: RolId): boolean {

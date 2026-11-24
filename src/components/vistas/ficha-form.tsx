@@ -110,7 +110,7 @@ export function FichaForm({ ficha, onClose }: Props) {
     }
     toast.success(ficha ? "Ficha actualizada" : "Ficha enviada")
     if (ficha) onClose?.()
-    else if ("id" in resultado && resultado.id) router.push(`/fichas/${resultado.id}`)
+    else if ("id" in resultado && resultado.id) router.push(`/fichas/ver?id=${resultado.id}`)
   }
 
   return (
