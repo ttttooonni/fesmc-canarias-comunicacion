@@ -74,7 +74,7 @@ export function empaquetar(ficha: Ficha): PaqueteFicha {
     actualizadoEn: ficha.actualizadoEn,
     creadoPorNombre: ficha.creadoPorNombre,
     ejemplo: ficha.ejemplo,
-    tp: ficha.textoPublicacion ? recortar(ficha.textoPublicacion, 600) : undefined,
+    tp: ficha.textoPublicacion ? recortarConSaltos(ficha.textoPublicacion, 600) : undefined,
     pp: ficha.programadoPara ?? undefined,
     rm: ficha.referenciaMaterial ? recortar(ficha.referenciaMaterial, 200) : undefined,
   }
@@ -237,6 +237,12 @@ export function fusionarFicha(local: Ficha | undefined, entrante: Ficha): { fich
 
 function recortar(texto: string, max: number): string {
   const limpio = texto.replace(/\s+/g, " ").trim()
+  if (limpio.length <= max) return limpio
+  return `${limpio.slice(0, max - 1).trimEnd()}…`
+}
+
+function recortarConSaltos(texto: string, max: number): string {
+  const limpio = texto.trim()
   if (limpio.length <= max) return limpio
   return `${limpio.slice(0, max - 1).trimEnd()}…`
 }
