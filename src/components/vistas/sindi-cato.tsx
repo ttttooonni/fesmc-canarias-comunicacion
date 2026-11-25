@@ -34,7 +34,10 @@ import {
   type SectorSerieId,
   type TipoDocumentoId,
 } from "@/lib/sindi-cato"
+import { EtiquetaDemo } from "@/components/etiqueta-demo"
+import { enlaceSeguro } from "@/lib/biblioteca"
 import { cn } from "@/lib/utils"
+import { Archive, Copy, Eye, MessageCircle } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
@@ -233,6 +236,7 @@ function Panel({ modulo, onModulo }: { modulo: ModuloSerieId; onModulo: (id: Mod
         {modulo === "documentacion" ? <ModuloDocumentacion /> : null}
         {modulo === "revision" ? <ModuloRevision /> : null}
         {modulo === "publicaciones" ? <ModuloPublicaciones /> : null}
+        {modulo === "archivo" ? <ModuloArchivo /> : null}
       </div>
     </div>
   )
@@ -405,9 +409,12 @@ function FormularioPersonaje({
 function ModuloEpisodios() {
   const app = useApp()
   const [editando, setEditando] = useState<EpisodioSerie | "nuevo" | null>(null)
+  const [viendo, setViendo] = useState<string | null>(null)
   const [filtro, setFiltro] = useState("todos")
+  const [tematica, setTematica] = useState("")
+  const tematicas = [...new Set(app.episodiosSerie.map((item) => item.tematica.trim()).filter(Boolean))].sort()
 
-  const lista = app.episodiosSerie.filter((item) => filtro === "todos" || item.estado === filtro)
+  const lista = app.episodiosSerie.filter((item) => (filtro === "todos" || item.estado === filtro) && (!tematica || item.tematica.trim() === tematica))
 
   return (
     <div className="space-y-4">
@@ -420,6 +427,21 @@ function ModuloEpisodios() {
           Nuevo episodio
         </Button>
       </div>
+      {tematicas.length ? (
+        <div>
+          <p className="text-sm font-medium">Temáticas</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" onClick={() => setTematica("")} className={cn("min-h-11 rounded-full px-4 text-sm font-medium ring-1", !tematica ? "bg-primary text-white ring-primary" : "bg-card ring-border")}>
+              Todas ({app.episodiosSerie.length})
+            </button>
+            {tematicas.map((item) => (
+              <button key={item} type="button" onClick={() => setTematica(item)} className={cn("min-h-11 rounded-full px-4 text-sm font-medium ring-1", tematica === item ? "bg-primary text-white ring-primary" : "bg-card ring-border")}>
+                {item} ({app.episodiosSerie.filter((ep) => ep.tematica.trim() === item).length})
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
       <select className={controlClass("w-auto")} value={filtro} onChange={(e) => setFiltro(e.target.value)} aria-label="Filtrar por estado">
         <option value="todos">Todos los estados</option>
         {ESTADOS_PRODUCCION.map((item) => (
@@ -442,13 +464,16 @@ function ModuloEpisodios() {
                   <p className="mt-1 text-sm text-muted-foreground">
                     {nombreSectorSerie(episodio.sector)}
                     {episodio.tematica ? ` · ${episodio.tematica}` : ""}
-                    {episodio.ejemplo ? " · Ejemplo" : ""}
+                    {episodio.ejemplo ? <EtiquetaDemo className="ml-2" /> : null}
                   </p>
                 </div>
                 <PillEstado estado={episodio.estado} />
               </div>
               {episodio.sinopsis ? <p className="mt-2 text-sm leading-relaxed">{episodio.sinopsis}</p> : null}
               <div className="mt-3 flex flex-wrap gap-2">
+                <Button type="button" className="h-11 gap-1" onClick={() => setViendo(episodio.id)}>
+                  <Eye aria-hidden className="size-4" /> Ver episodio
+                </Button>
                 <Button type="button" variant="outline" className="h-11" onClick={() => setEditando(episodio)}>
                   Editar
                 </Button>
@@ -470,6 +495,7 @@ function ModuloEpisodios() {
           ))
         )}
       </ul>
+      <DetalleEpisodio id={viendo} onCerrar={() => setViendo(null)} />
       <Dialog open={Boolean(editando)} onOpenChange={(abierto) => !abierto && setEditando(null)}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
@@ -580,7 +606,7 @@ function SelectorEpisodio({
         {episodiosSerie.map((item) => (
           <option key={item.id} value={item.id}>
             {item.titulo}
-            {item.ejemplo ? " (ejemplo)" : ""}
+            {item.ejemplo ? " (DEMOSTRACIÓN)" : ""}
           </option>
         ))}
       </select>
@@ -710,7 +736,7 @@ function ModuloDocumentacion() {
               <p className="text-xs font-semibold tracking-wide text-primary uppercase">{nombreTipoDocumento(doc.tipo)}</p>
               <p className="mt-1 font-heading text-lg font-semibold">{doc.titulo}</p>
               {doc.enlace ? (
-                <a href={doc.enlace} className="mt-1 inline-block break-all text-sm font-medium text-primary underline-offset-4 hover:underline" target="_blank" rel="noreferrer">
+                <a href={enlaceSeguro(doc.enlace) ?? undefined} className="mt-1 inline-block break-all text-sm font-medium text-primary underline-offset-4 hover:underline" target="_blank" rel="noreferrer">
                   {doc.enlace}
                 </a>
               ) : null}
@@ -1023,12 +1049,12 @@ function ModuloPublicaciones() {
               <p className="font-heading text-lg font-semibold">{pub.titular}</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {pub.fecha} · {pub.plataformas.map(nombrePlataformaPub).join(", ")}
-                {pub.ejemplo ? " · Ejemplo" : ""}
+                {pub.ejemplo ? <EtiquetaDemo className="ml-2" /> : null}
               </p>
               {pub.descripcion ? <p className="mt-2 text-sm leading-relaxed">{pub.descripcion}</p> : null}
               {pub.etiquetas ? <p className="mt-1 text-sm text-muted-foreground">{pub.etiquetas}</p> : null}
-              {pub.enlaceVideo ? (
-                <a href={pub.enlaceVideo} className="mt-2 inline-block break-all text-sm font-medium text-primary underline-offset-4 hover:underline" target="_blank" rel="noreferrer">
+              {enlaceSeguro(pub.enlaceVideo) ? (
+                <a href={enlaceSeguro(pub.enlaceVideo)!} className="mt-2 inline-block break-all text-sm font-medium text-primary underline-offset-4 hover:underline" target="_blank" rel="noreferrer">
                   Enlace al vídeo publicado
                 </a>
               ) : null}
@@ -1174,5 +1200,189 @@ function FormularioPublicacion({
         </Button>
       </div>
     </form>
+  )
+}
+
+function DetalleEpisodio({ id, onCerrar }: { id: string | null; onCerrar: () => void }) {
+  const app = useApp()
+  const episodio = app.episodiosSerie.find((item) => item.id === id)
+  const publicaciones = app.publicacionesSerie.filter((item) => item.episodioId === id)
+  const documentos = app.documentosSerie.filter((item) => id && item.episodioIds.includes(id))
+
+  async function copiar(texto: string, que: string) {
+    try {
+      await navigator.clipboard.writeText(texto)
+      toast.success(`${que} copiado`)
+    } catch {
+      toast.error("No se pudo copiar.")
+    }
+  }
+
+  return (
+    <Dialog open={Boolean(episodio)} onOpenChange={(abierto) => !abierto && onCerrar()}>
+      <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-2xl">
+        {episodio ? (
+          <>
+            <DialogHeader>
+              <p className="flex flex-wrap items-center gap-2">
+                <PillEstado estado={episodio.estado} />
+                {episodio.ejemplo ? <EtiquetaDemo /> : null}
+              </p>
+              <DialogTitle className="text-2xl">{episodio.titulo}</DialogTitle>
+            </DialogHeader>
+            <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+              <div><dt className="text-muted-foreground">Temática</dt><dd className="font-medium">{episodio.tematica || "—"}</dd></div>
+              <div><dt className="text-muted-foreground">Sector</dt><dd className="font-medium">{nombreSectorSerie(episodio.sector)}</dd></div>
+              <div><dt className="text-muted-foreground">Duración</dt><dd className="font-medium">{episodio.duracion || "—"}</dd></div>
+              <div><dt className="text-muted-foreground">Formato</dt><dd className="font-medium">{episodio.formato}</dd></div>
+            </dl>
+            {episodio.sinopsis ? <p className="text-base leading-relaxed">{episodio.sinopsis}</p> : null}
+            <ol className="flex flex-wrap gap-1 text-xs" aria-label="Fases de producción">
+              {ESTADOS_PRODUCCION.map((fase) => (
+                <li key={fase.id} className={cn("rounded-full px-2.5 py-1 font-semibold ring-1", fase.id === episodio.estado ? "bg-primary text-white ring-primary" : "ring-border text-muted-foreground")}>
+                  {fase.nombre}
+                </li>
+              ))}
+            </ol>
+            {episodio.guion ? (
+              <section>
+                <h3 className="font-heading text-lg font-semibold">Guion</h3>
+                <div className="mt-2 space-y-2 rounded-xl bg-muted p-3 text-sm leading-relaxed">
+                  {episodio.guion.split(/\n+/).filter(Boolean).map((linea, i) => {
+                    const [quien, ...resto] = linea.split(":")
+                    const conVoz = resto.length > 0 && quien.length < 16
+                    return (
+                      <p key={i}>
+                        {conVoz ? <strong className={quien.trim().toLowerCase() === "sindi" ? "text-primary" : ""}>{quien}:</strong> : null}
+                        {conVoz ? resto.join(":") : linea}
+                      </p>
+                    )
+                  })}
+                </div>
+              </section>
+            ) : null}
+            {episodio.escenas ? (
+              <section>
+                <h3 className="font-heading text-lg font-semibold">Escenas</h3>
+                <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap">{episodio.escenas}</p>
+              </section>
+            ) : null}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {([["Prompt de imagen", episodio.promptImagen], ["Prompt de vídeo", episodio.promptVideo]] as const).map(([titulo, texto]) =>
+                texto ? (
+                  <section key={titulo} className="rounded-xl p-3 ring-1 ring-border">
+                    <h3 className="text-sm font-semibold">{titulo}</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{texto}</p>
+                    <Button type="button" variant="outline" className="mt-2 h-10 gap-1" onClick={() => void copiar(texto, titulo)}>
+                      <Copy aria-hidden className="size-4" /> Copiar
+                    </Button>
+                  </section>
+                ) : null,
+              )}
+            </div>
+            <section>
+              <h3 className="font-heading text-lg font-semibold">Revisión</h3>
+              <ul className="mt-2 grid gap-1 text-sm sm:grid-cols-2">
+                {ETIQUETAS_CHECKLIST.map((item) => (
+                  <li key={item.id} className="flex items-center gap-2">
+                    <span aria-hidden className={cn("grid size-5 place-items-center rounded-full text-xs font-bold", episodio.checklist[item.id] ? "bg-[#0D5A40] text-white" : "bg-muted text-muted-foreground")}>
+                      {episodio.checklist[item.id] ? "✓" : "·"}
+                    </span>
+                    {item.etiqueta}
+                    <span className="sr-only">{episodio.checklist[item.id] ? "hecho" : "pendiente"}</span>
+                  </li>
+                ))}
+              </ul>
+              {episodio.comentarios.length ? (
+                <ul className="mt-3 space-y-2">
+                  {episodio.comentarios.map((c) => (
+                    <li key={c.id} className="rounded-lg bg-muted px-3 py-2 text-sm">
+                      <span className="font-medium">{c.porNombre}:</span> {c.texto}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </section>
+            {publicaciones.length || documentos.length ? (
+              <section className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <h3 className="text-sm font-semibold">Publicaciones</h3>
+                  <ul className="mt-1 text-sm text-muted-foreground">
+                    {publicaciones.length ? publicaciones.map((p) => <li key={p.id}>{p.fecha} · {p.titular} · {p.plataformas.map(nombrePlataformaPub).join(", ")}</li>) : <li>Ninguna todavía.</li>}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Documentación</h3>
+                  <ul className="mt-1 text-sm text-muted-foreground">
+                    {documentos.length ? documentos.map((d) => <li key={d.id}>{nombreTipoDocumento(d.tipo)} · {d.titulo}</li>) : <li>Sin documentos vinculados.</li>}
+                  </ul>
+                </div>
+              </section>
+            ) : null}
+            {app.usuario ? (
+              <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+                <Button
+                  type="button"
+                  className="h-11 gap-1"
+                  onClick={() => {
+                    const r = app.compartirEpisodio(episodio.id)
+                    if (!r.ok) toast.error(r.error)
+                  }}
+                >
+                  <MessageCircle aria-hidden className="size-4" /> Compartir por WhatsApp
+                </Button>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ModuloArchivo() {
+  const app = useApp()
+  const [viendo, setViendo] = useState<string | null>(null)
+  const publicados = app.episodiosSerie.filter((item) => item.estado === "publicado").sort((a, b) => b.actualizadoEn.localeCompare(a.actualizadoEn))
+  const archivadas = app.publicacionesSerie.filter((item) => item.archivada || (item.episodioId && publicados.some((ep) => ep.id === item.episodioId)))
+  const hitos = [
+    ...publicados.map((ep) => ({ clave: `ep-${ep.id}`, fecha: ep.actualizadoEn.slice(0, 10), titulo: ep.titulo, detalle: `Episodio publicado · ${ep.tematica || nombreSectorSerie(ep.sector)}`, episodioId: ep.id, ejemplo: ep.ejemplo })),
+    ...archivadas.map((pub) => ({ clave: `pub-${pub.id}`, fecha: pub.fecha, titulo: pub.titular, detalle: `Publicación · ${pub.plataformas.map(nombrePlataformaPub).join(", ")}`, episodioId: pub.episodioId, ejemplo: pub.ejemplo })),
+  ].sort((a, b) => b.fecha.localeCompare(a.fecha))
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="flex items-center gap-2 font-heading text-xl font-semibold"><Archive aria-hidden className="size-5" /> Archivo histórico</h3>
+        <p className="mt-1 text-sm text-muted-foreground">Episodios publicados y publicaciones archivadas, de lo más reciente a lo más antiguo. Nada se borra al archivar.</p>
+      </div>
+      <dl className="grid grid-cols-3 gap-3">
+        <div className="rounded-xl bg-muted p-3"><dt className="text-xs text-muted-foreground">Episodios publicados</dt><dd className="font-heading text-2xl font-semibold">{publicados.length}</dd></div>
+        <div className="rounded-xl bg-muted p-3"><dt className="text-xs text-muted-foreground">Publicaciones en archivo</dt><dd className="font-heading text-2xl font-semibold">{archivadas.length}</dd></div>
+        <div className="rounded-xl bg-muted p-3"><dt className="text-xs text-muted-foreground">Episodios en total</dt><dd className="font-heading text-2xl font-semibold">{app.episodiosSerie.length}</dd></div>
+      </dl>
+      <ol className="relative space-y-3 border-l-2 border-primary/30 pl-5">
+        {hitos.length === 0 ? (
+          <li className="text-sm text-muted-foreground">El archivo está vacío. Cuando un episodio pase a «Publicado» o archives una publicación, aparecerá aquí.</li>
+        ) : (
+          hitos.map((hito) => (
+            <li key={hito.clave} className="relative">
+              <span aria-hidden className="absolute top-2 -left-[1.69rem] size-3 rounded-full bg-primary ring-4 ring-card" />
+              <div className="rounded-xl p-3 ring-1 ring-border">
+                <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{hito.fecha} {hito.ejemplo ? <EtiquetaDemo /> : null}</p>
+                <p className="mt-1 font-semibold">{hito.titulo}</p>
+                <p className="text-sm text-muted-foreground">{hito.detalle}</p>
+                {hito.episodioId && app.episodiosSerie.some((ep) => ep.id === hito.episodioId) ? (
+                  <Button type="button" variant="outline" className="mt-2 h-10 gap-1" onClick={() => setViendo(hito.episodioId)}>
+                    <Eye aria-hidden className="size-4" /> Ver episodio
+                  </Button>
+                ) : null}
+              </div>
+            </li>
+          ))
+        )}
+      </ol>
+      <DetalleEpisodio id={viendo} onCerrar={() => setViendo(null)} />
+    </div>
   )
 }

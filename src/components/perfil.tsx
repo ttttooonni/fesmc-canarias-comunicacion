@@ -39,6 +39,9 @@ export function Perfil() {
       <p className="mt-3 text-base leading-relaxed text-muted-foreground">
         No hay cuentas ni servidor. El nombre y el rol se quedan en el teléfono y sirven para saber qué pasos del circuito te tocan.
       </p>
+      <p className="mt-3 rounded-xl bg-[#FFF6E8] px-3 py-2 text-sm leading-relaxed text-[#1C1C1C]">
+        <strong>Importante:</strong> el rol no es una contraseña ni un permiso. Cualquiera con el teléfono puede elegir otro. No guardes aquí nóminas, expedientes ni datos personales.
+      </p>
       <form className="mt-8 space-y-5" onSubmit={enviar}>
         <Campo id="nombre" etiqueta="Tu nombre">
           <Input id="nombre" className="h-12 text-base md:text-base" value={nombre} onChange={(evento) => setNombre(evento.target.value)} autoComplete="name" />

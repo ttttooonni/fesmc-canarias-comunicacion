@@ -46,6 +46,7 @@ export const MODULOS_SERIE = [
   { id: "documentacion", etiqueta: "Documentación" },
   { id: "revision", etiqueta: "Revisión" },
   { id: "publicaciones", etiqueta: "Publicaciones" },
+  { id: "archivo", etiqueta: "Archivo histórico" },
 ] as const
 
 export type SectorSerieId = (typeof SECTORES_SERIE)[number]["id"]

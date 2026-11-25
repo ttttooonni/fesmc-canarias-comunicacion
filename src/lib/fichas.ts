@@ -291,6 +291,41 @@ export function aclararFicha(input: {
   }
 }
 
+export function programarFicha(input: {
+  ficha: Ficha
+  fecha: string | null
+  usuario: UsuarioPublico
+  ahora: string
+  eventoId: string
+}): { ok: true; ficha: Ficha } | { ok: false; error: string } {
+  if (input.ficha.estado === "publicada") return { ok: false, error: "La pieza ya está publicada." }
+  if (input.usuario.rol !== "gestor" && input.usuario.rol !== "coordinacion") {
+    return { ok: false, error: "La programación la ordenan gestión o coordinación." }
+  }
+  const fecha = input.fecha?.trim() || null
+  if (fecha && !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { ok: false, error: "Indica una fecha válida." }
+  if (yaEsta(input.ficha, input.eventoId)) return { ok: true, ficha: input.ficha }
+  return {
+    ok: true,
+    ficha: {
+      ...input.ficha,
+      programadoPara: fecha,
+      actualizadoEn: input.ahora,
+      historial: [
+        ...input.ficha.historial,
+        {
+          id: input.eventoId,
+          estado: input.ficha.estado,
+          porId: input.usuario.id,
+          porNombre: input.usuario.nombre,
+          en: input.ahora,
+          nota: fecha ? `Programada para el ${fecha.split("-").reverse().join("/")}.` : "Se quitó la fecha de programación.",
+        },
+      ],
+    },
+  }
+}
+
 function esDemostracion(datos: unknown): boolean {
   return Boolean(datos && typeof datos === "object" && (datos as Record<string, unknown>).demostracion === true)
 }

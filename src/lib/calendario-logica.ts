@@ -1,4 +1,4 @@
-import { franjaDeFecha, type CanalId, type Hueco, type PilarId } from "@/lib/dominio"
+import { ISLAS, SECTORES, franjaDeFecha, type CanalId, type Hueco, type IslaId, type PilarId, type SectorId } from "@/lib/dominio"
 import { canalesDe } from "@/lib/fichas"
 
 export type DatosHueco = {
@@ -9,7 +9,12 @@ export type DatosHueco = {
   canales: CanalId[]
   fichaId: string | null
   confirmarExcepcional: boolean
+  isla: IslaId | null
+  sector: SectorId | null
 }
+
+const IDS_ISLA = new Set<string>([...ISLAS.map((item) => item.id), "regional"])
+const IDS_SECTOR = new Set<string>(SECTORES.map((item) => item.id))
 
 const PILARES = new Set([
   "derechos",
@@ -46,6 +51,8 @@ export function leerDatosHueco(entrada: unknown): { ok: true; datos: DatosHueco 
       canales,
       fichaId,
       confirmarExcepcional: bruto.confirmarExcepcional === true,
+      isla: typeof bruto.isla === "string" && IDS_ISLA.has(bruto.isla) ? (bruto.isla as IslaId) : null,
+      sector: typeof bruto.sector === "string" && IDS_SECTOR.has(bruto.sector) ? (bruto.sector as SectorId) : null,
     },
   }
 }
@@ -74,6 +81,8 @@ export function construirHueco(input: {
       canales: input.datos.canales,
       fichaId: input.datos.fichaId,
       excepcional: !franja,
+      isla: input.datos.isla ?? null,
+      sector: input.datos.sector ?? null,
       ejemplo: input.ejemplo ?? false,
     },
   }

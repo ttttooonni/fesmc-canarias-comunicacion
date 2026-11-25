@@ -1,4 +1,4 @@
-const CACHE = "ugt-com-v6"
+const CACHE = "ugt-com-v7"
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -15,6 +15,10 @@ self.addEventListener("install", (event) => {
         "circuito/",
         "registro/",
         "metricas/",
+        "biblioteca/",
+        "copias/",
+        "fichas/nueva/",
+        "fichas/ver/",
         "offline.html",
         "manifest.webmanifest",
         "icons/icon-192.png",

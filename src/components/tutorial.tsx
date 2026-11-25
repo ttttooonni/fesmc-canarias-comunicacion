@@ -38,7 +38,7 @@ const PASOS = [
   {
     id: "calendario",
     titulo: "El calendario de diciembre",
-    texto: "Lunes de derechos, miércoles de actividad, viernes de actualidad. Diciembre de 2026 se puede cargar como ejemplo, marcado como tal.",
+    texto: "Lunes de derechos, miércoles de actividad, viernes de actualidad. Diciembre de 2026 se puede cargar como DEMOSTRACIÓN, marcado como tal y fácil de quitar.",
     dibujo: "cal",
   },
   {

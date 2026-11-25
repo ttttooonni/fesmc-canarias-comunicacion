@@ -3,6 +3,7 @@
 import { Campo, controlClass } from "@/components/campo"
 import { EstadoPill } from "@/components/estado-pill"
 import { FichaForm } from "@/components/vistas/ficha-form"
+import { EtiquetaDemo } from "@/components/etiqueta-demo"
 import { useApp } from "@/components/proveedor"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -43,13 +44,14 @@ export function FichaDetalle() {
   const [aclaracion, setAclaracion] = useState("")
   const [islaCompartir, setIslaCompartir] = useState<IslaId>("lanzarote")
   const [ocupado, setOcupado] = useState(false)
+  const [programar, setProgramar] = useState<string | null>(null)
 
   if (!usuario) return null
   if (!ficha) {
     return (
       <main id="contenido">
         <h1 className="font-heading text-3xl font-semibold">Esta ficha no está en tu mesa</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Puede que no tengas permiso para verla o que todavía no se haya sincronizado.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Las fichas solo existen en el dispositivo donde se crearon o donde se abrió su enlace de WhatsApp. Pide que te reenvíen el enlace.</p>
       </main>
     )
   }
@@ -151,7 +153,7 @@ export function FichaDetalle() {
         <div className="flex flex-wrap items-center gap-2">
           <EstadoPill estado={ficha.estado} />
           {ficha.sensible ? <span className="rounded-full bg-[#7A1020] px-2.5 py-1 text-xs font-semibold text-white">Sensible</span> : null}
-          {ficha.ejemplo ? <span className="rounded-full px-2.5 py-1 text-xs text-muted-foreground ring-1 ring-border">Ejemplo</span> : null}
+          {ficha.ejemplo ? <EtiquetaDemo /> : null}
         </div>
         <h1 className="mt-3 font-heading text-3xl font-semibold tracking-tight">{ficha.titulo}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -216,6 +218,7 @@ export function FichaDetalle() {
         </div>
         <Dato etiqueta="Fuentes" valor={ficha.fuentes} />
         <Dato etiqueta="Material" valor={`${ficha.materialAutorizado ? "Autorizado. " : "Sin autorizar todavía. "}${ficha.descripcionMaterial}`} />
+        {ficha.referenciaMaterial ? <Dato etiqueta="Referencia del material" valor={ficha.referenciaMaterial} /> : null}
         <Dato etiqueta="Contacto del equipo" valor={`${ficha.contactoNombre}. ${ficha.contactoMedio}`} />
         <Dato etiqueta="Canales" valor={ficha.canales.map(nombreCanal).join(", ")} />
         {ficha.sensible ? <Dato etiqueta="Por qué es sensible" valor={ficha.motivoSensible} /> : null}
@@ -223,13 +226,43 @@ export function FichaDetalle() {
         <Dato etiqueta="Envió la ficha" valor={`${ficha.creadoPorNombre} · ${formatoMomento(ficha.creadoEn)}`} />
       </section>
 
+      {ficha.estado !== "publicada" && (usuario.rol === "gestor" || usuario.rol === "coordinacion") ? (
+        <section className="flex flex-wrap items-end gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Programar en el calendario
+            <input
+              type="date"
+              className="h-11 rounded-lg border border-input bg-card px-3 text-base"
+              value={programar ?? ficha.programadoPara ?? ""}
+              onChange={(evento) => setProgramar(evento.target.value)}
+            />
+          </label>
+          <Button
+            type="button"
+            className="h-11"
+            disabled={ocupado || (programar ?? ficha.programadoPara ?? "") === (ficha.programadoPara ?? "")}
+            onClick={async () => {
+              const r = await cambiarFicha(ficha.id, { tipo: "programar", fecha: programar ?? "" })
+              if (!r.ok) toast.error(r.error)
+              else {
+                toast.success(programar ? "Programada en el calendario" : "Fecha quitada")
+                setProgramar(null)
+              }
+            }}
+          >
+            Guardar fecha
+          </Button>
+          <p className="w-full text-xs text-muted-foreground">La pieza aparecerá en el calendario editorial ese día, con su canal, isla, sector y estado.</p>
+        </section>
+      ) : null}
+
       {editaDatos ? (
         <section>
           {editando ? (
             <FichaForm ficha={ficha} onClose={() => setEditando(false)} />
           ) : (
             <Button type="button" variant="outline" className="h-11 px-4" onClick={() => setEditando(true)}>
-              Corregir la ficha
+              Editar borrador
             </Button>
           )}
         </section>

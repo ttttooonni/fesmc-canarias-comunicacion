@@ -2,13 +2,22 @@
 
 import { useEffect } from "react"
 
-const CACHE = "ugt-com-v6"
+const CACHE = "ugt-com-v7"
 const base = process.env.NEXT_PUBLIC_BASE_PATH || ""
 const PRECACHE = [
   `${base}/`,
   `${base}/guia/`,
   `${base}/guia/seguridad/`,
   `${base}/sindi-cato/`,
+  `${base}/fichas/`,
+  `${base}/fichas/nueva/`,
+  `${base}/fichas/ver/`,
+  `${base}/circuito/`,
+  `${base}/calendario/`,
+  `${base}/biblioteca/`,
+  `${base}/metricas/`,
+  `${base}/copias/`,
+  `${base}/registro/`,
   `${base}/offline.html`,
   `${base}/manifest.webmanifest`,
   `${base}/icons/icon-192.png`,

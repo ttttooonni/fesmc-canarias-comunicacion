@@ -49,6 +49,26 @@ export function Seguridad() {
           Checklist de consulta antes de dejar salir una pieza. Las marcas se quedan en este dispositivo: el registro que vale para el circuito es la ficha.
         </p>
       </header>
+      <section className="grid gap-3 sm:grid-cols-2" aria-label="Límites de la aplicación">
+        <div className="rounded-2xl bg-[#1C1C1C] p-4 text-sm leading-relaxed text-white">
+          <h2 className="font-heading text-lg font-semibold">Cómo funciona</h2>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-white/85">
+            <li>Los datos se guardan solo en este dispositivo (IndexedDB del navegador).</li>
+            <li>El trabajo viaja en enlaces que se envían por WhatsApp. El contenido va dentro del enlace.</li>
+            <li>No hay servidor, base de datos remota ni cuentas.</li>
+            <li>Las copias JSON son archivos que guardas tú.</li>
+          </ul>
+        </div>
+        <div className="rounded-2xl border-2 border-[#E7B4BA] bg-[#FDF6F6] p-4 text-sm leading-relaxed text-[#1C1C1C]">
+          <h2 className="font-heading text-lg font-semibold">Lo que NO hace</h2>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>No hay autenticación real: los roles organizan el trabajo, no protegen nada.</li>
+            <li>Quien tenga el teléfono desbloqueado o reciba un enlace puede ver su contenido.</li>
+            <li>No sustituye el archivo oficial de la federación.</li>
+            <li>No introduzcas datos personales, expedientes, nóminas ni documentación confidencial.</li>
+          </ul>
+        </div>
+      </section>
       <p className="text-sm text-muted-foreground">
         {marcados.length} de {CHECKLIST_SEGURIDAD.length} puntos revisados en este dispositivo.
       </p>

@@ -17,7 +17,7 @@ import {
 } from "@/lib/copias"
 import { cargarDemostracion as conDemostracion, quitarDemostracion as sinDemostracion } from "@/lib/demostracion"
 import type { Ficha, Hueco, IslaId, MetricaMes, RolId, SectorId, UsuarioPublico } from "@/lib/dominio"
-import { actualizarDatos, actualizarTextos, aclararFicha, aplicarTransicion, construirFicha, registrarCompartido } from "@/lib/fichas"
+import { actualizarDatos, actualizarTextos, aclararFicha, aplicarTransicion, construirFicha, programarFicha, registrarCompartido } from "@/lib/fichas"
 import { construirMetrica } from "@/lib/metricas-logica"
 import {
   abrirWhatsappEpisodio,
@@ -351,6 +351,8 @@ export function Proveedor({ children }: { children: React.ReactNode }) {
           })
         } else if (tipo === "aclaracion") {
           local = aclararFicha({ ficha, nota: String(cuerpo.nota ?? ""), eventoId, usuario, ahora })
+        } else if (tipo === "programar") {
+          local = programarFicha({ ficha, fecha: typeof cuerpo.fecha === "string" ? cuerpo.fecha : null, usuario, ahora, eventoId })
         } else if (tipo === "compartir") {
           local = registrarCompartido({ ficha, isla: cuerpo.isla as Ficha["isla"], eventoId, usuario, ahora })
         } else local = { ok: false, error: "No reconozco ese cambio." }
@@ -363,7 +365,8 @@ export function Proveedor({ children }: { children: React.ReactNode }) {
         const leido = leerDatosHueco(datos)
         if (!leido.ok) return { ok: false, error: leido.error }
         const id = idExistente || crypto.randomUUID()
-        const local = construirHueco({ id, datos: leido.datos, ejemplo: false })
+        const previo = ref.current.calendario.find((hueco) => hueco.id === id)
+        const local = construirHueco({ id, datos: leido.datos, ejemplo: previo?.ejemplo ?? false })
         if (!local.ok) return local
         const calendario = idExistente
           ? ref.current.calendario.map((hueco) => (hueco.id === id ? local.hueco : hueco))

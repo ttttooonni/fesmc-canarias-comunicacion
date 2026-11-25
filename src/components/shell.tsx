@@ -10,22 +10,26 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { nombreRol } from "@/lib/dominio"
 import { cn } from "@/lib/utils"
-import { BookOpen, CalendarDays, ChartColumn, Clapperboard, House, Inbox, Menu, Route, Shield, SquareLibrary } from "lucide-react"
+import { AvisoLocal } from "@/components/aviso-local"
+import { SelectorRolDemo } from "@/components/selector-rol"
+import { BookOpen, CalendarDays, ChartColumn, Clapperboard, DatabaseBackup, House, Library, Menu, PenLine, Shield, SquareLibrary, Workflow } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
 
 const PRINCIPALES = [
   { href: "/", etiqueta: "Inicio", icono: House },
-  { href: "/fichas", etiqueta: "Fichas", icono: Inbox },
-  { href: "/circuito", etiqueta: "Circuito", icono: Route },
+  { href: "/fichas", etiqueta: "Redacción", icono: PenLine },
+  { href: "/circuito", etiqueta: "Coordinación", icono: Workflow },
   { href: "/calendario", etiqueta: "Calendario", icono: CalendarDays },
 ]
 
 const MAS = [
+  { href: "/biblioteca", etiqueta: "Biblioteca", icono: Library },
   { href: "/sindi-cato", etiqueta: "Sindi y Cato", icono: Clapperboard },
-  { href: "/registro", etiqueta: "Registro", icono: SquareLibrary },
   { href: "/metricas", etiqueta: "Métricas", icono: ChartColumn },
+  { href: "/copias", etiqueta: "Copias", icono: DatabaseBackup },
+  { href: "/registro", etiqueta: "Registro por isla", icono: SquareLibrary },
   { href: "/guia", etiqueta: "Guía y tono", icono: BookOpen },
   { href: "/guia/seguridad", etiqueta: "Seguridad y datos", icono: Shield },
 ]
@@ -130,6 +134,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="border-t border-white/10 p-4">
           <p className="text-sm font-semibold">{usuario.nombre}</p>
           <p className="text-xs text-white/70">{nombreRol(usuario.rol)} · en este dispositivo</p>
+          <SelectorRolDemo oscuro />
           <Button type="button" variant="outline" className="mt-3 h-11 w-full border-white/20 bg-transparent px-4 text-white hover:bg-white/10 hover:text-white" onClick={() => app.abrirTutorial()}>
             Cómo funciona
           </Button>
@@ -165,7 +170,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {app.pendientes > 0 ? ` ${app.pendientes} cambio${app.pendientes === 1 ? "" : "s"} pendiente${app.pendientes === 1 ? "" : "s"} de enviar.` : ""}
           </div>
         ) : null}
-        <div className="mx-auto w-full max-w-5xl px-4 pt-5 pb-28 md:px-8 md:pt-8 md:pb-12">{children}</div>
+        {app.cargaFallida ? (
+          <div className="border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-sm font-medium" role="alert">
+            Modo protegido: no se pudieron leer los datos guardados y esta sesión no escribe nada. Recarga la aplicación.
+          </div>
+        ) : null}
+        <div className="mx-auto w-full max-w-5xl px-4 pt-5 pb-28 md:px-8 md:pt-8 md:pb-12">
+          {children}
+          <footer className="mt-12 border-t border-border pt-4">
+            <AvisoLocal compacto />
+          </footer>
+        </div>
       </div>
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Secciones">
         <ul className="grid grid-cols-5">
@@ -210,19 +225,28 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <SheetTitle>Más secciones</SheetTitle>
           </SheetHeader>
           <div className="grid gap-2 px-4 pb-6">
-            {MAS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex min-h-11 items-center rounded-lg px-3 font-medium ring-1 ring-border"
-                onClick={() => setMas(false)}
-              >
-                {item.etiqueta}
-              </Link>
-            ))}
+            {MAS.map((item) => {
+              const Icono = item.icono
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={activo(pathname, item.href) ? "page" : undefined}
+                  className={cn(
+                    "flex min-h-12 items-center gap-3 rounded-xl px-3 font-medium ring-1 ring-border",
+                    activo(pathname, item.href) && "bg-primary/10 text-primary ring-primary/40",
+                  )}
+                  onClick={() => setMas(false)}
+                >
+                  <Icono aria-hidden className="size-5" />
+                  {item.etiqueta}
+                </Link>
+              )
+            })}
             <div className="mt-2 rounded-xl bg-[#F3EFEA] p-3 dark:bg-[#242424]">
               <p className="text-sm font-semibold">{usuario.nombre}</p>
               <p className="text-sm text-muted-foreground">{nombreRol(usuario.rol)}. En este dispositivo.</p>
+              <SelectorRolDemo />
             </div>
             <Instalar />
             <Button type="button" variant="outline" className="h-11" onClick={() => { setMas(false); app.abrirTutorial() }}>
