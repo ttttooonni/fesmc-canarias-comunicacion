@@ -46,9 +46,24 @@ El enlace tiene esta forma: `#/importar?d=...`. Los datos van en el fragmento de
 
 El tutorial de la primera apertura, y Más → Cómo funciona, lo cuenta con calma. También está en `TUTORIAL.md`.
 
-## Copias y ejemplo
+## Módulos
 
-En Inicio: **Cargar ejemplo** mete fichas, el calendario de diciembre de 2026 y un episodio de ejemplo de Sindi y Cato, marcados como ejemplo. **Descargar copia** e **Importar copia** mueven un JSON entre teléfonos, incluida el área de la serie.
+- **Inicio**: piezas pendientes, indicadores, accesos rápidos, panel de actividad y próximas piezas.
+- **Redacción** (`/fichas/`): crear, editar y guardar borradores; sector, isla, canales, referencia del material.
+- **Coordinación** (`/circuito/`): tablero por estados (Propuesta recibida → Pendiente de revisión → Revisión jurídica → Aprobada / Devuelta para modificaciones → Publicada).
+- **Calendario**: vista semanal y mensual, filtros por canal, isla, sector y estado.
+- **Biblioteca** (`/biblioteca/`): guiones, comunicados, imágenes, vídeos, plantillas y documentación (texto y enlaces https; no sube archivos).
+- **Sindi y Cato**: personajes, episodios, guion, escenas, prompts, revisión, publicación y archivo histórico.
+- **Métricas**: solo actividad local (previstas vs. realizadas, por sector, isla, canal, mes). No hay cifras de redes sociales.
+- **Copias** (`/copias/`): exportar e importar JSON con validación, resumen previo, fusión sin borrar, deshacer y registro.
+
+Los roles (insular, gestor, jurídico, coordinación) organizan el trabajo; **no son seguridad**. Todo se guarda en el dispositivo (IndexedDB) y se comparte con enlaces por WhatsApp.
+
+## Copias y DEMOSTRACIÓN
+
+En Inicio o en Copias: **Cargar DEMOSTRACIÓN** añade fichas ficticias en todos los estados, el calendario de diciembre de 2026, recursos de biblioteca y dos episodios de Sindi y Cato. Todo va etiquetado como DEMOSTRACIÓN, nunca sobrescribe datos propios y se quita con **Quitar DEMOSTRACIÓN**. **Descargar JSON** e **Importar** mueven una copia entre teléfonos; las copias antiguas (versión 1 y 2) siguen entrando.
+
+La base local está en el esquema 2. Al actualizar desde la versión anterior se guarda un respaldo (`mesa-respaldo-v1`) y se migran los datos sin perder nada.
 
 ## Sindi y Cato
 
