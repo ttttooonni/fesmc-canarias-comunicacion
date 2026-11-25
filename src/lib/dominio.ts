@@ -48,11 +48,11 @@ export const CANALES = [
 
 export const ESTADOS = [
   { id: "borrador", nombre: "Borrador", detalle: "Está en este dispositivo. Todavía no se ha enviado." },
-  { id: "propuesta", nombre: "Propuesta enviada", detalle: "Se compartió por WhatsApp para que el equipo la vea." },
-  { id: "en_revision", nombre: "En revisión", detalle: "Se pidió revisión de redacción e imagen." },
-  { id: "revision_legal", nombre: "Revisión legal", detalle: "La está mirando el referente jurídico." },
+  { id: "propuesta", nombre: "Propuesta recibida", detalle: "Se compartió por WhatsApp y espera que coordinación la recoja." },
+  { id: "en_revision", nombre: "Pendiente de revisión", detalle: "Se pidió revisión de redacción, fuentes e imagen." },
+  { id: "revision_legal", nombre: "Revisión jurídica", detalle: "La está mirando el referente jurídico." },
   { id: "aprobada", nombre: "Aprobada", detalle: "Ya se puede publicar." },
-  { id: "cambios", nombre: "Devuelta con cambios", detalle: "Hay que corregirla y volver a enviarla." },
+  { id: "cambios", nombre: "Devuelta para modificaciones", detalle: "Hay que corregirla y volver a enviarla." },
   { id: "publicada", nombre: "Publicada", detalle: "Ya está en las cuentas de la federación." },
 ] as const
 
@@ -131,6 +131,9 @@ export type Ficha = {
   difundidoEn: string | null
   checklist: ChecklistPublicacion | null
   compartidos: Compartido[]
+  /** Referencia al material autorizado (carpeta compartida, nombre de archivo, enlace). Añadido en el esquema 2. */
+  referenciaMaterial?: string
+  /** true = dato de DEMOSTRACIÓN (cargado de ejemplo o marcado así al crearlo). */
   ejemplo: boolean
 }
 
@@ -144,6 +147,9 @@ export type Hueco = {
   canales: CanalId[]
   fichaId: string | null
   excepcional: boolean
+  /** Isla y sector del hueco (opcionales, esquema 2). Si hay ficha vinculada, manda la ficha. */
+  isla?: IslaId | null
+  sector?: SectorId | null
   ejemplo: boolean
 }
 
@@ -192,6 +198,12 @@ export function nombrePilar(id: PilarId): string {
 export function nombreCanal(id: CanalId): string {
   return CANALES.find((canal) => canal.id === id)?.nombre ?? id
 }
+
+export function hoyIso(ahora = new Date()): string {
+  return `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(ahora.getDate()).padStart(2, "0")}`
+}
+
+export const ETIQUETA_DEMO = "DEMOSTRACIÓN"
 
 export function nombreEstado(id: EstadoId): string {
   return ESTADOS.find((estado) => estado.id === id)?.nombre ?? id

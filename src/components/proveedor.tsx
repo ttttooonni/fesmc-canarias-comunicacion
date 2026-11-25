@@ -1,9 +1,22 @@
 "use client"
 
+import { anotarRegistro, mesaVacia, type EntradaRegistroCopia } from "@/lib/almacen"
+import { leerRecurso, type RecursoBiblioteca } from "@/lib/biblioteca"
 import { construirHueco, leerDatosHueco } from "@/lib/calendario-logica"
-import { guardarMesa, leerMesa, type MesaLocal } from "@/lib/cliente/idb"
+import { guardarAntesDeImportar, guardarMesa, leerAntesDeImportar, leerMesa, type MesaLocal } from "@/lib/cliente/idb"
+import {
+  construirCopia,
+  entradaRegistro,
+  fusionarCopia,
+  nombreArchivoCopia,
+  resumirImportacion,
+  textoResumen,
+  validarCopia,
+  type ResultadoValidacion,
+  type ResumenImportacion,
+} from "@/lib/copias"
+import { cargarDemostracion as conDemostracion, quitarDemostracion as sinDemostracion } from "@/lib/demostracion"
 import type { Ficha, Hueco, IslaId, MetricaMes, RolId, SectorId, UsuarioPublico } from "@/lib/dominio"
-import { calendarioDeEjemplo, fichasDeEjemplo, metricaDeEjemplo } from "@/lib/ejemplo"
 import { actualizarDatos, actualizarTextos, aclararFicha, aplicarTransicion, construirFicha, registrarCompartido } from "@/lib/fichas"
 import { construirMetrica } from "@/lib/metricas-logica"
 import {
@@ -11,15 +24,12 @@ import {
   asegurarPersonajes,
   checklistCompleto,
   decodificarPaqueteEpisodio,
-  episodioDeEjemplo,
   episodioDesdePaquete,
   fusionarEpisodio,
-  fusionarPorId,
   leerDocumento,
   leerEpisodio,
   leerPersonaje,
   leerPublicacion,
-  reponerPersonajesOficiales,
   type DocumentoSerie,
   type EpisodioSerie,
   type PersonajeSerie,
@@ -37,6 +47,8 @@ type PerfilNuevo = {
   sector: SectorId | null
 }
 
+export type ValidacionOk = Extract<ResultadoValidacion, { ok: true }>
+
 type Estado = {
   listo: boolean
   usuario: UsuarioPublico | null
@@ -47,16 +59,24 @@ type Estado = {
   episodiosSerie: EpisodioSerie[]
   documentosSerie: DocumentoSerie[]
   publicacionesSerie: PublicacionSerie[]
+  biblioteca: RecursoBiblioteca[]
+  registroCopias: EntradaRegistroCopia[]
+  esquema: number
   offline: boolean
   pendientes: number
   aviso: string | null
   tutorialVisto: boolean
   tutorialAbierto: boolean
   importadaId: string | null
+  /** Si la lectura inicial falla, no se escribe nada para no pisar los datos guardados. */
+  cargaFallida: boolean
+  idbBloqueada: boolean
+  deshacerDisponible: string | null
 }
 
 type Valor = Estado & {
   guardarPerfil: (perfil: PerfilNuevo) => void
+  cambiarRol: (rol: RolId, isla?: IslaId | null, sector?: SectorId | null) => void
   salir: () => void
   crearFicha: (datos: unknown) => Promise<Resultado & { id?: string }>
   cambiarFicha: (id: string, cuerpo: Record<string, unknown>) => Promise<Resultado>
@@ -74,9 +94,16 @@ type Valor = Estado & {
   aprobarEpisodio: (id: string, nota?: string) => Resultado
   devolverEpisodio: (id: string, nota?: string) => Resultado
   compartirEpisodio: (id: string) => Resultado
+  guardarRecurso: (datos: unknown, idExistente?: string) => Resultado
+  borrarRecurso: (id: string) => Resultado
   cargarEjemplo: () => void
+  cargarDemostracion: () => void
+  quitarDemostracion: () => number
   exportarCopia: () => void
+  previsualizarCopia: (texto: string) => { ok: true; validacion: ValidacionOk; resumen: ResumenImportacion } | { ok: false; error: string }
+  confirmarImportacion: (validacion: ValidacionOk) => Promise<{ ok: true; mensaje: string } | { ok: false; error: string }>
   importarCopia: (texto: string) => { ok: true } | { ok: false; error: string }
+  deshacerImportacion: () => Promise<{ ok: true } | { ok: false; error: string }>
   abrirTutorial: () => void
   cerrarTutorial: () => void
   limpiarAviso: () => void
@@ -95,12 +122,54 @@ const VACIO: Estado = {
   episodiosSerie: [],
   documentosSerie: [],
   publicacionesSerie: [],
+  biblioteca: [],
+  registroCopias: [],
+  esquema: 2,
   offline: false,
   pendientes: 0,
   aviso: null,
   tutorialVisto: false,
   tutorialAbierto: false,
   importadaId: null,
+  cargaFallida: false,
+  idbBloqueada: false,
+  deshacerDisponible: null,
+}
+
+function mesaDeEstado(estado: Estado): MesaLocal {
+  return {
+    ...mesaVacia(),
+    esquema: estado.esquema,
+    perfil: estado.usuario,
+    fichas: estado.fichas,
+    calendario: estado.calendario,
+    metricas: estado.metricas,
+    personajesSerie: estado.personajesSerie,
+    episodiosSerie: estado.episodiosSerie,
+    documentosSerie: estado.documentosSerie,
+    publicacionesSerie: estado.publicacionesSerie,
+    biblioteca: estado.biblioteca,
+    registroCopias: estado.registroCopias,
+    tutorialVisto: estado.tutorialVisto,
+    guardadoEn: new Date().toISOString(),
+  }
+}
+
+function estadoDeMesa(mesa: MesaLocal): Partial<Estado> {
+  return {
+    usuario: mesa.perfil,
+    fichas: mesa.fichas,
+    calendario: mesa.calendario,
+    metricas: mesa.metricas,
+    personajesSerie: mesa.personajesSerie,
+    episodiosSerie: mesa.episodiosSerie,
+    documentosSerie: mesa.documentosSerie,
+    publicacionesSerie: mesa.publicacionesSerie,
+    biblioteca: mesa.biblioteca,
+    registroCopias: mesa.registroCopias,
+    tutorialVisto: mesa.tutorialVisto,
+    esquema: mesa.esquema,
+  }
 }
 
 export function Proveedor({ children }: { children: React.ReactNode }) {
@@ -110,78 +179,70 @@ export function Proveedor({ children }: { children: React.ReactNode }) {
     ref.current = estado
   })
 
+  /**
+   * Aplica un cambio y lo guarda. El segundo argumento se mantiene por compatibilidad:
+   * lo que se guarda es siempre el estado completo resultante.
+   */
   function publicar(parcial: Partial<Estado>, mesa?: Partial<MesaLocal>) {
+    void mesa
     setEstado((prev) => {
       const siguiente = { ...prev, ...parcial, listo: true }
       ref.current = siguiente
-      const guardar: MesaLocal = {
-        perfil: mesa?.perfil !== undefined ? mesa.perfil : siguiente.usuario,
-        fichas: mesa?.fichas ?? siguiente.fichas,
-        calendario: mesa?.calendario ?? siguiente.calendario,
-        metricas: mesa?.metricas ?? siguiente.metricas,
-        personajesSerie: mesa?.personajesSerie ?? siguiente.personajesSerie,
-        episodiosSerie: mesa?.episodiosSerie ?? siguiente.episodiosSerie,
-        documentosSerie: mesa?.documentosSerie ?? siguiente.documentosSerie,
-        publicacionesSerie: mesa?.publicacionesSerie ?? siguiente.publicacionesSerie,
-        tutorialVisto: mesa?.tutorialVisto ?? siguiente.tutorialVisto,
-        guardadoEn: new Date().toISOString(),
-      }
-      void guardarMesa(guardar)
+      if (!siguiente.cargaFallida) void guardarMesa(mesaDeEstado(siguiente))
       return siguiente
     })
   }
 
+  function registrar(tipo: EntradaRegistroCopia["tipo"], detalle: string): EntradaRegistroCopia[] {
+    return anotarRegistro(ref.current.registroCopias, entradaRegistro(tipo, detalle, ref.current.usuario?.nombre ?? null))
+  }
+
   useEffect(() => {
     let vivo = true
+    function bloqueada() {
+      setEstado((prev) => ({ ...prev, idbBloqueada: true }))
+    }
+    window.addEventListener("ugt-idb-bloqueada", bloqueada)
     void leerMesa()
-      .then((mesa) => {
+      .then(async (leida) => {
         if (!vivo) return
-        const fichasBase = mesa?.fichas ?? []
-        const personajesSerie = asegurarPersonajes(mesa?.personajesSerie)
-        const episodiosBase = mesa?.episodiosSerie ?? []
-        const documentosSerie = mesa?.documentosSerie ?? []
-        const publicacionesSerie = mesa?.publicacionesSerie ?? []
-        const traida = leerImportacion(fichasBase, episodiosBase)
-        const fichas = traida?.fichas ?? fichasBase
-        const episodiosSerie = traida?.episodiosSerie ?? episodiosBase
+        const mesa = leida ?? mesaVacia()
+        const personajesSerie = asegurarPersonajes(mesa.personajesSerie)
+        const traida = leerImportacion(mesa.fichas, mesa.episodiosSerie)
+        const fichas = traida?.fichas ?? mesa.fichas
+        const episodiosSerie = traida?.episodiosSerie ?? mesa.episodiosSerie
+        const previa = await leerAntesDeImportar().catch(() => null)
         const siguiente: Estado = {
           ...VACIO,
+          ...estadoDeMesa(mesa),
           listo: true,
-          usuario: mesa?.perfil ?? null,
           fichas,
-          calendario: mesa?.calendario ?? [],
-          metricas: mesa?.metricas ?? [],
           personajesSerie,
           episodiosSerie,
-          documentosSerie,
-          publicacionesSerie,
-          tutorialVisto: mesa?.tutorialVisto ?? false,
           offline: typeof navigator !== "undefined" ? !navigator.onLine : false,
           importadaId: traida?.id ?? null,
           aviso: traida?.aviso ?? null,
+          deshacerDisponible: previa?.en || null,
         }
         ref.current = siguiente
         setEstado(siguiente)
-        if (traida || !mesa?.personajesSerie || mesa.personajesSerie.length === 0) {
-          void guardarMesa({
-            perfil: siguiente.usuario,
-            fichas,
-            calendario: siguiente.calendario,
-            metricas: siguiente.metricas,
-            personajesSerie,
-            episodiosSerie,
-            documentosSerie,
-            publicacionesSerie,
-            tutorialVisto: siguiente.tutorialVisto,
-            guardadoEn: new Date().toISOString(),
-          })
+        if (traida || !leida || mesa.personajesSerie.length === 0) {
+          void guardarMesa(mesaDeEstado(siguiente))
         }
         if (traida) {
           history.replaceState(null, "", `${window.location.pathname}${window.location.search}`)
         }
       })
       .catch(() => {
-        if (vivo) setEstado((prev) => ({ ...prev, listo: true, personajesSerie: asegurarPersonajes([]) }))
+        if (vivo) {
+          setEstado((prev) => ({
+            ...prev,
+            listo: true,
+            cargaFallida: true,
+            personajesSerie: asegurarPersonajes([]),
+            aviso: "No se pudieron leer los datos guardados. Para protegerlos, esta sesión no guardará cambios. Recarga la app.",
+          }))
+        }
       })
     function red() {
       setEstado((prev) => ({ ...prev, offline: !navigator.onLine }))
@@ -190,6 +251,7 @@ export function Proveedor({ children }: { children: React.ReactNode }) {
     window.addEventListener("offline", red)
     return () => {
       vivo = false
+      window.removeEventListener("ugt-idb-bloqueada", bloqueada)
       window.removeEventListener("online", red)
       window.removeEventListener("offline", red)
     }
@@ -199,18 +261,12 @@ export function Proveedor({ children }: { children: React.ReactNode }) {
     function alHash() {
       const traida = leerImportacion(ref.current.fichas, ref.current.episodiosSerie)
       if (!traida) return
-      publicar(
-        {
-          fichas: traida.fichas ?? ref.current.fichas,
-          episodiosSerie: traida.episodiosSerie ?? ref.current.episodiosSerie,
-          importadaId: traida.id,
-          aviso: traida.aviso,
-        },
-        {
-          fichas: traida.fichas ?? ref.current.fichas,
-          episodiosSerie: traida.episodiosSerie ?? ref.current.episodiosSerie,
-        },
-      )
+      publicar({
+        fichas: traida.fichas ?? ref.current.fichas,
+        episodiosSerie: traida.episodiosSerie ?? ref.current.episodiosSerie,
+        importadaId: traida.id,
+        aviso: traida.aviso,
+      })
       history.replaceState(null, "", `${window.location.pathname}${window.location.search}`)
     }
     window.addEventListener("hashchange", alHash)
@@ -218,13 +274,17 @@ export function Proveedor({ children }: { children: React.ReactNode }) {
   }, [])
 
   const valor = useMemo<Valor>(() => {
+    function cargarDemo() {
+      const mesa = conDemostracion(mesaDeEstado(ref.current), ref.current.usuario?.nombre ?? null)
+      publicar({ ...estadoDeMesa(mesa), usuario: ref.current.usuario, aviso: "Datos de DEMOSTRACIÓN cargados. Son ficticios y se pueden quitar desde Inicio o Copias." })
+    }
     return {
       ...estado,
       limpiarAviso: () => setEstado((prev) => ({ ...prev, aviso: null })),
       limpiarImportada: () => setEstado((prev) => ({ ...prev, importadaId: null })),
       abrirTutorial: () => setEstado((prev) => ({ ...prev, tutorialAbierto: true })),
       cerrarTutorial: () => {
-        publicar({ tutorialAbierto: false, tutorialVisto: true }, { tutorialVisto: true })
+        publicar({ tutorialAbierto: false, tutorialVisto: true })
       },
       guardarPerfil: (perfil) => {
         const usuario: UsuarioPublico = {
@@ -237,9 +297,20 @@ export function Proveedor({ children }: { children: React.ReactNode }) {
           ejemplo: false,
         }
         const abrir = !estado.tutorialVisto
-        publicar({ usuario, tutorialAbierto: abrir }, { perfil: usuario })
+        publicar({ usuario, tutorialAbierto: abrir })
       },
-      salir: () => publicar({ usuario: null }, { perfil: null }),
+      cambiarRol: (rol, isla, sector) => {
+        const actual = ref.current.usuario
+        if (!actual) return
+        const usuario: UsuarioPublico = {
+          ...actual,
+          rol,
+          isla: rol === "insular" ? (isla ?? actual.isla ?? "tenerife") : null,
+          sector: rol === "sectorial" ? (sector ?? actual.sector ?? "hosteleria") : null,
+        }
+        publicar({ usuario })
+      },
+      salir: () => publicar({ usuario: null }),
       crearFicha: async (datos) => {
         const usuario = ref.current.usuario
         if (!usuario) return { ok: false, error: "Elige primero tu perfil en este dispositivo." }
@@ -461,101 +532,87 @@ export function Proveedor({ children }: { children: React.ReactNode }) {
         if (!ok) return { ok: false, error: "No se pudo abrir WhatsApp." }
         return { ok: true }
       },
-      cargarEjemplo: () => {
-        const actuales = new Set(ref.current.fichas.map((ficha) => ficha.id))
-        const fichas = [...fichasDeEjemplo().filter((ficha) => !actuales.has(ficha.id)), ...ref.current.fichas]
-        const huecos = new Set(ref.current.calendario.map((hueco) => hueco.id))
-        const calendario = [...ref.current.calendario, ...calendarioDeEjemplo().filter((hueco) => !huecos.has(hueco.id))].sort(
-          (a, b) => a.fecha.localeCompare(b.fecha),
-        )
-        const metricas = ref.current.metricas.some((item) => item.mes === "2026-11")
-          ? ref.current.metricas
-          : [...ref.current.metricas, metricaDeEjemplo()]
-        const personajesSerie = reponerPersonajesOficiales(ref.current.personajesSerie)
-        const ejemplo = episodioDeEjemplo()
-        const episodiosSerie = ref.current.episodiosSerie.some((item) => item.id === ejemplo.id)
-          ? ref.current.episodiosSerie
-          : [ejemplo, ...ref.current.episodiosSerie]
-        publicar(
-          {
-            fichas,
-            calendario,
-            metricas,
-            personajesSerie,
-            episodiosSerie,
-            aviso: "Ejemplo cargado. Son datos ficticios, no de las cuentas oficiales.",
-          },
-          { fichas, calendario, metricas, personajesSerie, episodiosSerie },
-        )
+      guardarRecurso: (datos, idExistente) => {
+        const id = idExistente || crypto.randomUUID()
+        const anterior = ref.current.biblioteca.find((item) => item.id === id)
+        const local = leerRecurso(datos, id, new Date().toISOString(), anterior)
+        if (!local.ok) return local
+        const biblioteca = anterior
+          ? ref.current.biblioteca.map((item) => (item.id === id ? local.recurso : item))
+          : [local.recurso, ...ref.current.biblioteca]
+        publicar({ biblioteca })
+        return { ok: true }
+      },
+      borrarRecurso: (id) => {
+        if (!ref.current.biblioteca.some((item) => item.id === id)) return { ok: false, error: "Ese recurso no está en este dispositivo." }
+        publicar({ biblioteca: ref.current.biblioteca.filter((item) => item.id !== id) })
+        return { ok: true }
+      },
+      cargarEjemplo: cargarDemo,
+      cargarDemostracion: cargarDemo,
+      quitarDemostracion: () => {
+        const { mesa, quitados } = sinDemostracion(mesaDeEstado(ref.current), ref.current.usuario?.nombre ?? null)
+        publicar({
+          ...estadoDeMesa(mesa),
+          usuario: ref.current.usuario,
+          aviso: quitados ? `Quitados ${quitados} elementos de DEMOSTRACIÓN. Tus datos no se han tocado.` : "No había datos de DEMOSTRACIÓN.",
+        })
+        return quitados
       },
       exportarCopia: () => {
-        const copia = {
-          tipo: "ugt-fesmc-copia",
-          version: 2,
-          perfil: ref.current.usuario,
-          fichas: ref.current.fichas,
-          calendario: ref.current.calendario,
-          metricas: ref.current.metricas,
-          personajesSerie: ref.current.personajesSerie,
-          episodiosSerie: ref.current.episodiosSerie,
-          documentosSerie: ref.current.documentosSerie,
-          publicacionesSerie: ref.current.publicacionesSerie,
-        }
+        const registroCopias = registrar("exportacion", `Copia descargada con ${ref.current.fichas.length} fichas, ${ref.current.episodiosSerie.length} episodios y ${ref.current.biblioteca.length} recursos.`)
+        const copia = construirCopia({ ...mesaDeEstado(ref.current), registroCopias })
         const blob = new Blob([JSON.stringify(copia, null, 2)], { type: "application/json" })
         const url = URL.createObjectURL(blob)
         const enlace = document.createElement("a")
         enlace.href = url
-        enlace.download = "ugt-fesmc-copia.json"
+        enlace.download = nombreArchivoCopia()
+        document.body.appendChild(enlace)
         enlace.click()
-        URL.revokeObjectURL(url)
+        enlace.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+        publicar({ registroCopias })
+      },
+      previsualizarCopia: (texto) => {
+        const validacion = validarCopia(texto)
+        if (!validacion.ok) return validacion
+        return { ok: true, validacion, resumen: resumirImportacion(mesaDeEstado(ref.current), validacion) }
+      },
+      confirmarImportacion: async (validacion) => {
+        if (ref.current.cargaFallida) return { ok: false, error: "Esta sesión no puede guardar. Recarga la app antes de importar." }
+        try {
+          const antes = mesaDeEstado(ref.current)
+          const resumen = resumirImportacion(antes, validacion)
+          await guardarAntesDeImportar(antes)
+          const fusion = fusionarCopia(antes, validacion.copia)
+          const mensaje = `Copia importada. ${textoResumen(resumen)}`
+          const registroCopias = anotarRegistro(fusion.registroCopias, entradaRegistro("importacion", mensaje, ref.current.usuario?.nombre ?? null))
+          publicar({ ...estadoDeMesa(fusion), usuario: ref.current.usuario, registroCopias, aviso: mensaje, deshacerDisponible: new Date().toISOString() })
+          return { ok: true, mensaje }
+        } catch {
+          return { ok: false, error: "No se pudo importar la copia. No se ha cambiado nada." }
+        }
       },
       importarCopia: (texto) => {
-        try {
-          const copia = JSON.parse(texto) as {
-            tipo?: string
-            fichas?: Ficha[]
-            calendario?: Hueco[]
-            metricas?: MetricaMes[]
-            personajesSerie?: PersonajeSerie[]
-            episodiosSerie?: EpisodioSerie[]
-            documentosSerie?: DocumentoSerie[]
-            publicacionesSerie?: PublicacionSerie[]
-          }
-          if (copia.tipo !== "ugt-fesmc-copia" || !Array.isArray(copia.fichas)) {
-            return { ok: false, error: "Ese archivo no es una copia de esta aplicación." }
-          }
-          const mapa = new Map(ref.current.fichas.map((ficha) => [ficha.id, ficha]))
-          for (const ficha of copia.fichas) {
-            const fusion = fusionarFicha(mapa.get(ficha.id), ficha)
-            mapa.set(ficha.id, fusion.ficha)
-          }
-          const fichas = [...mapa.values()]
-          const huecos = new Map(ref.current.calendario.map((hueco) => [hueco.id, hueco]))
-          for (const hueco of copia.calendario ?? []) huecos.set(hueco.id, hueco)
-          const calendario = [...huecos.values()].sort((a, b) => a.fecha.localeCompare(b.fecha))
-          const meses = new Map(ref.current.metricas.map((item) => [item.mes, item]))
-          for (const metrica of copia.metricas ?? []) meses.set(metrica.mes, metrica)
-          const metricas = [...meses.values()]
-          const personajesSerie = fusionarPorId(ref.current.personajesSerie, copia.personajesSerie)
-          const episodiosMapa = new Map(ref.current.episodiosSerie.map((item) => [item.id, item]))
-          for (const episodio of copia.episodiosSerie ?? []) {
-            const fusion = fusionarEpisodio(episodiosMapa.get(episodio.id), episodio)
-            episodiosMapa.set(episodio.id, fusion.episodio)
-          }
-          const episodiosSerie = [...episodiosMapa.values()]
-          const documentosSerie = fusionarPorId(ref.current.documentosSerie, copia.documentosSerie)
-          const publicacionesSerie = fusionarPorId(ref.current.publicacionesSerie, copia.publicacionesSerie)
-          publicar(
-            { fichas, calendario, metricas, personajesSerie, episodiosSerie, documentosSerie, publicacionesSerie, aviso: "Copia importada en este dispositivo." },
-            { fichas, calendario, metricas, personajesSerie, episodiosSerie, documentosSerie, publicacionesSerie },
-          )
-          return { ok: true }
-        } catch {
-          return { ok: false, error: "No se pudo leer el archivo." }
-        }
+        const validacion = validarCopia(texto)
+        if (!validacion.ok) return validacion
+        void valorActual.current?.confirmarImportacion(validacion)
+        return { ok: true }
+      },
+      deshacerImportacion: async () => {
+        const previa = await leerAntesDeImportar().catch(() => null)
+        if (!previa) return { ok: false, error: "No hay ninguna importación que deshacer en este dispositivo." }
+        const registroCopias = anotarRegistro(ref.current.registroCopias, entradaRegistro("deshacer", "Se volvió al estado anterior a la última importación.", ref.current.usuario?.nombre ?? null))
+        publicar({ ...estadoDeMesa(previa.mesa), usuario: ref.current.usuario, registroCopias, deshacerDisponible: null, aviso: "Importación deshecha. Los datos vuelven a estar como antes de importar." })
+        return { ok: true }
       },
     }
   }, [estado])
+
+  const valorActual = useRef<Valor | null>(null)
+  useEffect(() => {
+    valorActual.current = valor
+  })
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>
 }

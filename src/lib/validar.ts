@@ -28,6 +28,7 @@ export type DatosFicha = {
   motivoSensible: string
   pilar: PilarId
   canales: CanalId[]
+  referenciaMaterial: string
 }
 
 const IDS_ISLA = new Set<string>([...ISLAS.map((isla) => isla.id), "regional"])
@@ -64,6 +65,7 @@ export function validarDatosFicha(entrada: unknown): { ok: true; datos: DatosFic
   const contactoMedio = texto(bruto.contactoMedio)
   const motivoSensible = texto(bruto.motivoSensible)
   const pilar = texto(bruto.pilar)
+  const referenciaMaterial = texto(bruto.referenciaMaterial)
   const materialAutorizado = bruto.materialAutorizado === true
   const sensible = bruto.sensible === true
   const canales = Array.isArray(bruto.canales)
@@ -86,6 +88,8 @@ export function validarDatosFicha(entrada: unknown): { ok: true; datos: DatosFic
   if (contactoMedio.length < 3) errores.contactoMedio = "Indica un canal interno de contacto, sin datos personales reales."
   if (!IDS_PILAR.has(pilar)) errores.pilar = "Elige el pilar o la sección."
   if (canales.length === 0) errores.canales = "Marca al menos un canal."
+  if (referenciaMaterial.length > 300) errores.referenciaMaterial = "La referencia del material no debería pasar de 300 caracteres."
+  if (/^javascript:/i.test(referenciaMaterial)) errores.referenciaMaterial = "Esa referencia no es válida."
   if (sensible && motivoSensible.length < 8) {
     errores.motivoSensible = "Si es sensible, explica por qué sin añadir datos de más."
   }
@@ -109,6 +113,7 @@ export function validarDatosFicha(entrada: unknown): { ok: true; datos: DatosFic
       motivoSensible: sensible ? motivoSensible : "",
       pilar: pilar as PilarId,
       canales: canales as CanalId[],
+      referenciaMaterial,
     },
   }
 }

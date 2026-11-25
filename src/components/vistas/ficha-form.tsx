@@ -12,6 +12,7 @@ import {
   ISLA_FEDERACION,
   PILARES,
   SECTORES,
+  hoyIso,
   type CanalId,
   type Ficha,
   type IslaId,
@@ -45,10 +46,10 @@ function inicial(usuarioIsla: IslaId | null, usuarioSector: SectorId | null, fic
       motivoSensible: ficha.motivoSensible,
       pilar: ficha.pilar,
       canales: ficha.canales,
+      referenciaMaterial: ficha.referenciaMaterial ?? "",
     }
   }
-  const hoy = new Date()
-  const cuando = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`
+  const cuando = hoyIso()
   return {
     titulo: "",
     queOcurrio: "",
@@ -64,6 +65,7 @@ function inicial(usuarioIsla: IslaId | null, usuarioSector: SectorId | null, fic
     motivoSensible: "",
     pilar: "derechos",
     canales: ["instagram"],
+    referenciaMaterial: "",
   }
 }
 
@@ -71,6 +73,7 @@ export function FichaForm({ ficha, onClose }: Props) {
   const { usuario, crearFicha, cambiarFicha } = useApp()
   const router = useRouter()
   const [datos, setDatos] = useState<DatosFicha>(() => inicial(usuario?.isla ?? null, usuario?.sector ?? null, ficha))
+  const [demostracion, setDemostracion] = useState<boolean>(ficha?.ejemplo ?? false)
   const [errores, setErrores] = useState<Record<string, string>>({})
   const [ocupado, setOcupado] = useState(false)
   if (!usuario) return null
@@ -100,24 +103,30 @@ export function FichaForm({ ficha, onClose }: Props) {
     setErrores({})
     setOcupado(true)
     const resultado = ficha
-      ? await cambiarFicha(ficha.id, { tipo: "datos", ...validado.datos })
-      : await crearFicha(validado.datos)
+      ? await cambiarFicha(ficha.id, { tipo: "datos", ...validado.datos, demostracion })
+      : await crearFicha({ ...validado.datos, demostracion })
     setOcupado(false)
     if (!resultado.ok) {
       if (resultado.errores) setErrores(resultado.errores)
       toast.error(resultado.error)
       return
     }
-    toast.success(ficha ? "Ficha actualizada" : "Ficha enviada")
+    toast.success(ficha ? "Borrador actualizado" : "Borrador guardado en este dispositivo. Ahora puedes enviarlo como propuesta.")
     if (ficha) onClose?.()
     else if ("id" in resultado && resultado.id) router.push(`/fichas/ver?id=${resultado.id}`)
   }
 
   return (
     <form className="space-y-5" onSubmit={(evento) => void guardar(evento)} noValidate>
-      <p className="rounded-lg bg-[#F8E8E6] px-3 py-2 text-sm leading-relaxed">
-        No escribas nombres y apellidos, teléfonos, DNI ni datos de salud. El contacto es alguien del equipo, con un canal interno.
+      <p className="rounded-lg bg-[#F8E8E6] px-3 py-2 text-sm leading-relaxed text-[#1C1C1C]">
+        No escribas nombres y apellidos, teléfonos, DNI, nóminas, expedientes ni datos de salud. El contacto es alguien del equipo, con un canal interno.
       </p>
+      <label className="flex min-h-12 items-start gap-3 rounded-xl border-2 border-dashed border-[#E4C48A] bg-[#FFF6E8] p-3 text-sm leading-relaxed text-[#1C1C1C]">
+        <Checkbox className="mt-0.5 size-5" checked={demostracion} onCheckedChange={(valor) => setDemostracion(valor)} />
+        <span>
+          <span className="font-semibold">Ficha de DEMOSTRACIÓN.</span> Márcala si es una noticia ficticia para enseñar la app. Llevará la etiqueta DEMOSTRACIÓN y se podrá quitar de golpe.
+        </span>
+      </label>
       <Campo id="titulo" etiqueta="Título" error={errores.titulo} ayuda="Una línea que el equipo entienda sin abrir el resto.">
         <Input id="titulo" className="h-11 text-base md:text-base" value={datos.titulo} onChange={(evento) => poner("titulo", evento.target.value)} aria-invalid={Boolean(errores.titulo)} />
       </Campo>
@@ -169,6 +178,14 @@ export function FichaForm({ ficha, onClose }: Props) {
         <Campo id="material" etiqueta="Qué material hay" error={errores.descripcionMaterial}>
           <Textarea id="material" className="min-h-20 text-base" value={datos.descripcionMaterial} onChange={(evento) => poner("descripcionMaterial", evento.target.value)} />
         </Campo>
+        <Campo
+          id="referencia-material"
+          etiqueta="Referencia del material (opcional)"
+          error={errores.referenciaMaterial}
+          ayuda="Dónde está: carpeta compartida, nombre del archivo o enlace. La app no sube archivos."
+        >
+          <Input id="referencia-material" className="h-11 text-base md:text-base" value={datos.referenciaMaterial} onChange={(evento) => poner("referenciaMaterial", evento.target.value)} placeholder="Carpeta del equipo › Imágenes › cartel.png" />
+        </Campo>
       </fieldset>
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo id="contacto" etiqueta="Persona de contacto del equipo" error={errores.contactoNombre}>
@@ -204,7 +221,7 @@ export function FichaForm({ ficha, onClose }: Props) {
       </fieldset>
       <div className="flex flex-wrap gap-3">
         <Button type="submit" className="h-11 px-4" disabled={ocupado}>
-          {ocupado ? "Guardando…" : ficha ? "Guardar corrección" : "Enviar ficha"}
+          {ocupado ? "Guardando…" : ficha ? "Guardar cambios" : "Guardar borrador"}
         </Button>
         {onClose ? (
           <Button type="button" variant="outline" className="h-11 px-4" onClick={onClose}>

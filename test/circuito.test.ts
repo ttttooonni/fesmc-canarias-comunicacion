@@ -105,7 +105,7 @@ describe("enlace de WhatsApp", () => {
   it("el mensaje y el fragmento hacen el viaje de ida y vuelta", () => {
     const ficha = { ...fichaDe(), estado: "propuesta" as const, actualizadoEn: "2026-11-22T12:00:00.000Z" }
     const mensaje = mensajeWhatsapp(ficha, "https://ejemplo.test/fesmc-canarias-comunicacion/")
-    expect(mensaje).toContain("Propuesta enviada")
+    expect(mensaje).toContain("Propuesta recibida")
     expect(mensaje).toContain(ficha.titulo)
     expect(mensaje).toContain("#/importar?d=")
     const dato = mensaje.split("#/importar?d=")[1] ?? ""

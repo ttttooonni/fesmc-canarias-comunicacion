@@ -58,7 +58,7 @@ export function construirFicha(input: {
     difundidoEn: null,
     checklist: null,
     compartidos: [],
-    ejemplo: false,
+    ejemplo: esDemostracion(input.datos),
   }
   ficha.textoPublicacion = borradorPublicacion(ficha)
   ficha.textoCompartir = textoParaCuentaInsular(ficha, ficha.isla)
@@ -84,9 +84,11 @@ export function actualizarDatos(input: {
   const validado = validarDatosFicha(input.datos)
   if (!validado.ok) return { ok: false, error: "Revisa la ficha.", errores: validado.errores }
   const datos = aplicarAmbito(validado.datos, input.usuario)
+  const bruto = (input.datos && typeof input.datos === "object" ? input.datos : {}) as Record<string, unknown>
   const siguiente: Ficha = {
     ...input.ficha,
     ...datos,
+    ejemplo: typeof bruto.demostracion === "boolean" ? bruto.demostracion : input.ficha.ejemplo,
     actualizadoEn: input.ahora,
     historial: yaEsta(input.ficha, input.eventoId)
       ? input.ficha.historial
@@ -287,6 +289,10 @@ export function aclararFicha(input: {
       ],
     },
   }
+}
+
+function esDemostracion(datos: unknown): boolean {
+  return Boolean(datos && typeof datos === "object" && (datos as Record<string, unknown>).demostracion === true)
 }
 
 function yaEsta(ficha: Ficha, eventoId: string): boolean {

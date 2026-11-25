@@ -1,4 +1,4 @@
-import type { Ficha, Hueco, MetricaMes } from "@/lib/dominio"
+import type { Ficha, Hueco } from "@/lib/dominio"
 import { borradorPublicacion, textoParaCuentaInsular } from "@/lib/textos"
 
 function pieza(parcial: Ficha): Ficha {
@@ -18,7 +18,7 @@ export function fichasDeEjemplo(): Ficha[] {
       isla: "lanzarote",
       cuando: "2026-12-11",
       sector: "hosteleria",
-      fuentes: "Ficha de ejemplo de la isla. Sin expediente.",
+      fuentes: "DEMOSTRACIÓN. Ficha ficticia de la isla, sin expediente.",
       materialAutorizado: true,
       descripcionMaterial: "Sin fotos de personas. Serie Sindi y Cato.",
       contactoNombre: "Responsable de Lanzarote (ejemplo)",
@@ -59,7 +59,7 @@ export function fichasDeEjemplo(): Ficha[] {
       isla: "tenerife",
       cuando: "2026-12-07",
       sector: "aereo",
-      fuentes: "Nota de ejemplo, sin el cuadrante real.",
+      fuentes: "DEMOSTRACIÓN. Nota ficticia, sin el cuadrante real.",
       materialAutorizado: true,
       descripcionMaterial: "Gráfica genérica, sin marcas de aerolínea.",
       contactoNombre: "Responsable de Tenerife (ejemplo)",
@@ -100,7 +100,7 @@ export function fichasDeEjemplo(): Ficha[] {
       isla: "fuerteventura",
       cuando: "2026-11-12",
       sector: "contact_center",
-      fuentes: "Sección de ejemplo y convenio de referencia.",
+      fuentes: "DEMOSTRACIÓN. Sección ficticia y convenio de referencia.",
       materialAutorizado: true,
       descripcionMaterial: "Ilustración propia, sin personas.",
       contactoNombre: "Sección de contact center (ejemplo)",
@@ -152,22 +152,7 @@ export function calendarioDeEjemplo(): Hueco[] {
     { id: "cal-2026-12-28", fecha: "2026-12-28", franja: "lunes_derechos", pilar: "salud", titulo: "Descansos que no se improvisan", angulo: "Registrar la jornada real.", canales: ["instagram", "facebook"], fichaId: null },
     { id: "cal-2026-12-30", fecha: "2026-12-30", franja: "miercoles_actividad", pilar: "participacion", titulo: "Enero se prepara con la ficha breve", angulo: "Qué enviar y cómo marcar lo sensible.", canales: ["instagram", "facebook"], fichaId: null },
   ]
-  return piezas.map((piezaCal) => ({ ...piezaCal, excepcional: false, ejemplo: true }))
+  return piezas.map((piezaCal) => ({ ...piezaCal, excepcional: false, isla: "regional" as const, sector: null, ejemplo: true }))
 }
 
-export function metricaDeEjemplo(): MetricaMes {
-  return {
-    mes: "2026-11",
-    canales: {
-      instagram: { publicaciones: 8, alcance: 14200, interacciones: 860, seguidores: 4180, variacionSeguidores: 64 },
-      facebook: { publicaciones: 8, alcance: 18600, interacciones: 540, seguidores: 6020, variacionSeguidores: 28 },
-      tiktok: { publicaciones: 3, alcance: 9800, interacciones: 1200, seguidores: 1640, variacionSeguidores: 90 },
-    },
-    notas: "Cifras de demostración. No proceden de las cuentas oficiales.",
-    incidenciasSeguridad: 1,
-    actualizadoPorId: "ejemplo",
-    actualizadoPorNombre: "Ejemplo",
-    actualizadoEn: "2026-11-21T18:00:00.000Z",
-    ejemplo: true,
-  }
-}
+// Las cifras de redes de ejemplo se retiraron: la app no inventa estadísticas de redes sociales.

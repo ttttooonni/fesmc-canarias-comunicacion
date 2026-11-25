@@ -10,6 +10,7 @@ import {
   type PilarId,
   type SectorId,
 } from "@/lib/dominio"
+import { borradorPublicacion } from "@/lib/textos"
 
 export type PaqueteFicha = {
   v: 1
@@ -33,6 +34,10 @@ export type PaqueteFicha = {
   actualizadoEn: string
   creadoPorNombre: string
   ejemplo: boolean
+  /** Campos opcionales añadidos sin cambiar `v: 1`: los enlaces antiguos siguen funcionando. */
+  tp?: string
+  pp?: string | null
+  rm?: string
 }
 
 const ESTADOS_OK = new Set<string>([
@@ -69,6 +74,9 @@ export function empaquetar(ficha: Ficha): PaqueteFicha {
     actualizadoEn: ficha.actualizadoEn,
     creadoPorNombre: ficha.creadoPorNombre,
     ejemplo: ficha.ejemplo,
+    tp: ficha.textoPublicacion ? recortar(ficha.textoPublicacion, 600) : undefined,
+    pp: ficha.programadoPara ?? undefined,
+    rm: ficha.referenciaMaterial ? recortar(ficha.referenciaMaterial, 200) : undefined,
   }
 }
 
@@ -122,7 +130,8 @@ export function fichaDesdePaquete(paquete: PaqueteFicha): Ficha {
     actualizadoEn: ahora,
     historial: [
       {
-        id: `${paquete.id}-import`,
+        // Un id por estado y momento: cada paso que llega por WhatsApp queda en el recorrido.
+        id: `${paquete.id}-import-${paquete.estado}-${ahora}`,
         estado: paquete.estado,
         porId: "importada",
         porNombre: paquete.creadoPorNombre || "Equipo",
@@ -130,9 +139,10 @@ export function fichaDesdePaquete(paquete: PaqueteFicha): Ficha {
         nota: paquete.nota || "Importada desde un enlace de WhatsApp.",
       },
     ],
-    textoPublicacion: paquete.titulo,
+    textoPublicacion: typeof paquete.tp === "string" ? paquete.tp : "",
     textoCompartir: "",
-    programadoPara: null,
+    programadoPara: typeof paquete.pp === "string" && /^\d{4}-\d{2}-\d{2}$/.test(paquete.pp) ? paquete.pp : null,
+    referenciaMaterial: typeof paquete.rm === "string" ? paquete.rm : "",
     publicadoEn: paquete.estado === "publicada" ? ahora : null,
     difundidoEn: null,
     checklist: null,
@@ -154,6 +164,7 @@ export function mensajeWhatsapp(ficha: Ficha, origen?: string): string {
   const nota = [...ficha.historial].reverse().find((paso) => paso.nota)?.nota
   const lineas = [
     "UGT FeSMC Canarias · Comunicación digital",
+    ficha.ejemplo ? "⚠️ DEMOSTRACIÓN · contenido ficticio" : "",
     "",
     `📋 ${ficha.titulo}`,
     `${nombreIsla(ficha.isla)} · ${nombreSector(ficha.sector)}`,
@@ -193,7 +204,12 @@ export function abrirWhatsapp(ficha: Ficha): boolean {
 }
 
 export function fusionarFicha(local: Ficha | undefined, entrante: Ficha): { ficha: Ficha; nueva: boolean } {
-  if (!local) return { ficha: entrante, nueva: true }
+  if (!local) {
+    return {
+      ficha: { ...entrante, textoPublicacion: entrante.textoPublicacion || borradorPublicacion(entrante) },
+      nueva: true,
+    }
+  }
   if (entrante.actualizadoEn < local.actualizadoEn) return { ficha: local, nueva: false }
   const ids = new Set(entrante.historial.map((paso) => paso.id))
   const historial = [...entrante.historial, ...local.historial.filter((paso) => !ids.has(paso.id))]
@@ -205,6 +221,16 @@ export function fusionarFicha(local: Ficha | undefined, entrante: Ficha): { fich
       historial,
       textoPublicacion: entrante.textoPublicacion || local.textoPublicacion,
       textoCompartir: local.textoCompartir || entrante.textoCompartir,
+      programadoPara: entrante.programadoPara ?? local.programadoPara,
+      publicadoEn: entrante.publicadoEn ?? local.publicadoEn,
+      referenciaMaterial: entrante.referenciaMaterial || local.referenciaMaterial || "",
+      compartidos: [
+        ...local.compartidos,
+        ...entrante.compartidos.filter((item) => !local.compartidos.some((otro) => otro.isla === item.isla)),
+      ],
+      checklist: entrante.checklist ?? local.checklist,
+      creadoPorId: local.creadoPorId,
+      creadoEn: local.creadoEn < entrante.creadoEn ? local.creadoEn : entrante.creadoEn,
     },
   }
 }
