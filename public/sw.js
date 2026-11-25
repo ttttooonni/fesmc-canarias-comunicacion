@@ -1,10 +1,11 @@
-const CACHE = "ugt-com-v7"
+const CACHE = "ugt-com-v8"
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE)
       const scope = self.registration.scope
+      const recursos = new Set()
       const rutas = [
         "",
         "guia/",
@@ -33,9 +34,28 @@ self.addEventListener("install", (event) => {
           try {
             const url = new URL(ruta, scope)
             const respuesta = await fetch(url, { cache: "reload" })
-            if (respuesta.ok) await cache.put(url, respuesta)
+            if (!respuesta.ok) return
+            if ((respuesta.headers.get("content-type") || "").includes("text/html")) {
+              const html = await respuesta.clone().text()
+              for (const coincidencia of html.matchAll(/["'(]([^"'()\s]*\/_next\/static\/[^"'()\s]+)/g)) {
+                recursos.add(new URL(coincidencia[1].replace(/\\/g, ""), url).href)
+              }
+            }
+            await cache.put(url, respuesta)
           } catch {
             // Una ruta caída no tumba el resto.
+          }
+        }),
+      )
+      // JS y CSS de todas las pantallas, para que cada ruta funcione sin conexión aunque no se haya visitado.
+      await Promise.all(
+        [...recursos].map(async (href) => {
+          try {
+            if (await cache.match(href)) return
+            const respuesta = await fetch(href)
+            if (respuesta.ok) await cache.put(href, respuesta)
+          } catch {
+            // Seguimos con el resto.
           }
         }),
       )

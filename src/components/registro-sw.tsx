@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 
-const CACHE = "ugt-com-v7"
+const CACHE = "ugt-com-v8"
 const base = process.env.NEXT_PUBLIC_BASE_PATH || ""
 const PRECACHE = [
   `${base}/`,

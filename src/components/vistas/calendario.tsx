@@ -157,6 +157,17 @@ export function Calendario() {
           >
             <ChevronRight aria-hidden className="size-5" />
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 px-3"
+            onClick={() => {
+              setMes(mesDe(hoy))
+              setLunes(lunesDe(hoy))
+            }}
+          >
+            Hoy
+          </Button>
         </div>
       </div>
 
